@@ -1,4 +1,4 @@
-#include <dze/optional.hpp>
+#include <dze/optional_reference.hpp>
 
 #include <catch2/catch.hpp>
 
