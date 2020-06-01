@@ -14,43 +14,43 @@ namespace q::util {
 
 namespace details {
 
-template <typename policy>
-using disengaged_initializer_t = decltype(std::declval<policy>().disengaged_initializer());
+template <typename Policy>
+using disengaged_initializer_t = decltype(std::declval<Policy>().disengaged_initializer());
 
-template <typename policy>
-constexpr bool has_disengaged_initializer_v = is_detected_v<disengaged_initializer_t, policy>;
+template <typename Policy>
+constexpr bool has_disengaged_initializer_v = is_detected_v<disengaged_initializer_t, Policy>;
 
 // This class template manages construction/destruction of
 // the contained value for a util::optional.
-template <typename T, typename policy>
-class optional_payload_base : private policy
+template <typename T, typename Policy>
+class optional_payload_base : private Policy
 {
     using stored_type = std::remove_const_t<T>;
 
 public:
-    template <typename dummy = policy,
+    template <typename dummy = Policy,
         Q_UTIL_REQUIRES(!has_disengaged_initializer_v<dummy>)>
     constexpr optional_payload_base() noexcept
-        : policy{false} {}
+        : Policy{false} {}
 
-    template <typename dummy = policy,
+    template <typename dummy = Policy,
         Q_UTIL_REQUIRES(has_disengaged_initializer_v<dummy>)>
     constexpr optional_payload_base() noexcept
-        : policy{false}
-        , m_payload{std::in_place, static_cast<policy&>(*this).disengaged_initializer()} {}
+        : Policy{false}
+        , m_payload{std::in_place, static_cast<Policy&>(*this).disengaged_initializer()} {}
 
-    template <typename... args_t>
-    constexpr optional_payload_base(std::in_place_t, args_t&&... args)
-        : policy{true}
-        , m_payload{std::in_place, std::forward<args_t>(args)...}
+    template <typename... Args>
+    constexpr optional_payload_base(std::in_place_t, Args&&... args)
+        : Policy{true}
+        , m_payload{std::in_place, std::forward<Args>(args)...}
     {
         assert(is_engaged());
     }
 
-    template <typename U, typename... args_t>
-    constexpr optional_payload_base(std::initializer_list<U> ilist, args_t&&... args)
-        : policy{true}
-        , m_payload{ilist, std::forward<args_t>(args)...}
+    template <typename U, typename... Args>
+    constexpr optional_payload_base(std::initializer_list<U> ilist, Args&&... args)
+        : Policy{true}
+        , m_payload{ilist, std::forward<Args>(args)...}
     {
         assert(is_engaged());
     }
@@ -59,7 +59,7 @@ public:
     // contained value is not trivially copy constructible.
     constexpr optional_payload_base(bool, const optional_payload_base& other)
         noexcept(std::is_nothrow_copy_constructible_v<T>)
-        : policy{other.is_engaged()}
+        : Policy{other.is_engaged()}
     {
         if (other.is_engaged())
             construct(other.get());
@@ -69,34 +69,34 @@ public:
     // contained value is not trivially move constructible.
     constexpr optional_payload_base(bool, optional_payload_base&& other)
         noexcept(std::is_nothrow_move_constructible_v<T>)
-        : policy{other.is_engaged()}
+        : Policy{other.is_engaged()}
     {
         if (other.is_engaged())
             construct(std::move(other.get()));
     }
 
-    template <typename... args_t>
-    void construct(args_t&&... args)
-        noexcept(std::is_nothrow_constructible_v<stored_type, args_t...>)
+    template <typename... Args>
+    void construct(Args&&... args)
+        noexcept(std::is_nothrow_constructible_v<stored_type, Args...>)
     {
         ::new
             (static_cast<void*>(std::addressof(m_payload.m_value)))
-            stored_type(std::forward<args_t>(args)...);
+            stored_type(std::forward<Args>(args)...);
     }
 
-    template <typename dummy = policy, typename... args_t,
+    template <typename dummy = Policy, typename... Args,
         Q_UTIL_REQUIRES(has_disengaged_initializer_v<dummy>)>
-    void set(args_t&&... args)
-        noexcept(std::is_nothrow_constructible_v<stored_type, args_t...>)
+    void set(Args&&... args)
+        noexcept(std::is_nothrow_constructible_v<stored_type, Args...>)
     {
-        static_cast<policy*>(this)->set(m_payload.m_value, std::forward<args_t>(args)...);
+        static_cast<Policy*>(this)->set(m_payload.m_value, std::forward<Args>(args)...);
     }
 
-    template <typename dummy = policy,
+    template <typename dummy = Policy,
         Q_UTIL_REQUIRES(!has_disengaged_initializer_v<dummy>)>
     void set() noexcept
     {
-        static_cast<policy*>(this)->set();
+        static_cast<Policy*>(this)->set();
     }
 
     constexpr void copy_assign(const optional_payload_base& other)
@@ -106,7 +106,7 @@ public:
             get() = other.get();
         else if (other.is_engaged())
         {
-            if constexpr (has_disengaged_initializer_v<policy>)
+            if constexpr (has_disengaged_initializer_v<Policy>)
                 set(other.get());
             else
                 construct(other.get());
@@ -122,7 +122,7 @@ public:
             get() = std::move(other.get());
         else if (other.is_engaged())
         {
-            if constexpr (has_disengaged_initializer_v<policy>)
+            if constexpr (has_disengaged_initializer_v<Policy>)
                 set(std::move(other.get()));
             else
                 construct(std::move(other.get()));
@@ -139,28 +139,28 @@ public:
         if (is_engaged())
             get().~stored_type();
         else if constexpr (
-            !std::is_trivially_destructible_v<T> && has_disengaged_initializer_v<policy>)
+            !std::is_trivially_destructible_v<T> && has_disengaged_initializer_v<Policy>)
         {
-            static_cast<policy*>(this)->cleanup(m_payload.m_value);
+            static_cast<Policy*>(this)->cleanup(m_payload.m_value);
         }
     }
 
     [[nodiscard]] constexpr bool is_engaged() const noexcept
     {
-        if constexpr (has_disengaged_initializer_v<policy>)
-            return static_cast<const policy*>(this)->is_engaged(m_payload.m_value);
+        if constexpr (has_disengaged_initializer_v<Policy>)
+            return static_cast<const Policy*>(this)->is_engaged(m_payload.m_value);
         else
-            return static_cast<const policy*>(this)->is_engaged();
+            return static_cast<const Policy*>(this)->is_engaged();
     }
 
     constexpr void unchecked_reset() noexcept
     {
-        if constexpr (has_disengaged_initializer_v<policy>)
-            static_cast<policy*>(this)->disengage(get());
+        if constexpr (has_disengaged_initializer_v<Policy>)
+            static_cast<Policy*>(this)->disengage(get());
         else
         {
             get().~stored_type();
-            static_cast<policy*>(this)->disengage();
+            static_cast<Policy*>(this)->disengage();
         }
     }
 
@@ -174,7 +174,6 @@ public:
     // The get() operations have is_engaged() as a precondition.
     // They exist to access the contained value with the appropriate
     // const-qualification, because m_payload has had the const removed.
-
     [[nodiscard]] constexpr const T& get() const noexcept
     {
         assert(is_engaged());
@@ -200,13 +199,13 @@ private:
 
         // Not using brace initializers here to allow potential narrowing conversions.
 
-        template <typename... args_t>
-        constexpr storage(std::in_place_t, args_t&&... args)
-            : m_value(std::forward<args_t>(args)...) {}
+        template <typename... Args>
+        constexpr storage(std::in_place_t, Args&&... args)
+            : m_value(std::forward<Args>(args)...) {}
 
-        template <typename V, typename... args_t>
-        constexpr storage(std::initializer_list<V> ilist, args_t&&... args)
-            : m_value(ilist, std::forward<args_t>(args)...) {}
+        template <typename V, typename... Args>
+        constexpr storage(std::initializer_list<V> ilist, Args&&... args)
+            : m_value(ilist, std::forward<Args>(args)...) {}
 
         empty_byte m_empty;
         stored_type m_value;
@@ -219,14 +218,14 @@ private:
             : m_empty{} {}
 
         // Not using brace initializers here to allow potential narrowing conversions.
-        template <typename... args_t>
-        constexpr storage(std::in_place_t, args_t&&... args)
-            : m_value(std::forward<args_t>(args)...) {}
+        template <typename... Args>
+        constexpr storage(std::in_place_t, Args&&... args)
+            : m_value(std::forward<Args>(args)...) {}
 
         // Not using brace initializers here to allow potential narrowing conversions.
-        template <typename V, typename... args_t>
-        constexpr storage(std::initializer_list<V> ilist, args_t&&... args)
-            : m_value(ilist, std::forward<args_t>(args)...) {}
+        template <typename V, typename... Args>
+        constexpr storage(std::initializer_list<V> ilist, Args&&... args)
+            : m_value(ilist, std::forward<Args>(args)...) {}
 
         // User-provided destructor is needed when U has a non-trivial dtor.
         // Clang Tidy does not understand non-default destuctors of unions.
@@ -243,18 +242,18 @@ private:
 // Class template that manages the payload for optionals.
 template <
     typename T,
-    typename policy,
+    typename Policy,
     bool = std::is_trivially_destructible_v<T>,
     bool = std::is_trivially_copy_constructible_v<T> && std::is_trivially_copy_assignable_v<T>,
     bool = std::is_trivially_move_constructible_v<T> && std::is_trivially_move_assignable_v<T>>
 class optional_payload;
 
 // Payload for potentially-constexpr optionals.
-template <typename T, typename policy>
-class optional_payload<T, policy, true, true, true> : public optional_payload_base<T, policy>
+template <typename T, typename Policy>
+class optional_payload<T, Policy, true, true, true> : public optional_payload_base<T, Policy>
 {
 public:
-    using optional_payload_base<T, policy>::optional_payload_base;
+    using optional_payload_base<T, Policy>::optional_payload_base;
 
     optional_payload() = default;
 };
@@ -264,11 +263,11 @@ public:
 // version. This should be removed on move to next version.
 
 // Payload for optionals with non-trivial copy construction/assignment.
-template <typename T, typename policy>
-class optional_payload<T, policy, true, false, true> : public optional_payload_base<T, policy>
+template <typename T, typename Policy>
+class optional_payload<T, Policy, true, false, true> : public optional_payload_base<T, Policy>
 {
 public:
-    using optional_payload_base<T, policy>::optional_payload_base;
+    using optional_payload_base<T, Policy>::optional_payload_base;
 
     optional_payload() = default;
 
@@ -289,11 +288,11 @@ public:
 };
 
 // Payload for optionals with non-trivial move construction/assignment.
-template <typename T, typename policy>
-class optional_payload<T, policy, true, true, false> : public optional_payload_base<T, policy>
+template <typename T, typename Policy>
+class optional_payload<T, Policy, true, true, false> : public optional_payload_base<T, Policy>
 {
 public:
-    using optional_payload_base<T, policy>::optional_payload_base;
+    using optional_payload_base<T, Policy>::optional_payload_base;
 
     optional_payload() = default;
 
@@ -317,11 +316,11 @@ public:
 };
 
 // Payload for optionals with non-trivial copy and move assignment.
-template <typename T, typename policy>
-class optional_payload<T, policy, true, false, false> : public optional_payload_base<T, policy>
+template <typename T, typename Policy>
+class optional_payload<T, Policy, true, false, false> : public optional_payload_base<T, Policy>
 {
 public:
-    using optional_payload_base<T, policy>::optional_payload_base;
+    using optional_payload_base<T, Policy>::optional_payload_base;
 
     optional_payload() = default;
 
@@ -350,13 +349,13 @@ public:
 };
 
 // Payload for optionals with non-trivial destructors.
-template <typename T, typename policy, bool copy, bool move>
-class optional_payload<T, policy, false, copy, move>
-    : public optional_payload<T, policy, true, copy, move>
+template <typename T, typename Policy, bool copy, bool move>
+class optional_payload<T, Policy, false, copy, move>
+    : public optional_payload<T, Policy, true, copy, move>
 {
 public:
     // Base class implements all the constructors and assignment operators:
-    using optional_payload<T, policy, true, copy, move>::optional_payload;
+    using optional_payload<T, Policy, true, copy, move>::optional_payload;
 
     optional_payload() = default;
     optional_payload(const optional_payload&) = default;
@@ -372,9 +371,9 @@ public:
     ~optional_payload() { this->destruct(); }
 };
 
-// Common base class for optional_base<T, policy> to avoid repeating these
+// Common base class for optional_base<T, Policy> to avoid repeating these
 // member functions in each specialization.
-template <typename T, typename policy, typename optional_base>
+template <typename T, typename Policy, typename optional_base>
 class optional_base_impl
 {
 protected:
@@ -382,28 +381,28 @@ protected:
 
     // construct has !is_engaged() as a precondition.
     // Should be used when a new optional object is being constructed.
-    template <typename... args_t>
-    void construct(args_t&&... args)
-        noexcept(std::is_nothrow_constructible_v<stored_type, args_t...>)
+    template <typename... Args>
+    void construct(Args&&... args)
+        noexcept(std::is_nothrow_constructible_v<stored_type, Args...>)
     {
         auto& payload = static_cast<optional_base*>(this)->payload();
-        payload.construct(std::forward<args_t>(args)...);
-        if constexpr (!has_disengaged_initializer_v<policy>)
+        payload.construct(std::forward<Args>(args)...);
+        if constexpr (!has_disengaged_initializer_v<Policy>)
             payload.set();
     }
 
     // set has !is_engaged() as a precondition.
     // Should be used on an existing optional object.
-    template <typename... args_t>
-    void set(args_t&&... args)
-        noexcept(std::is_nothrow_constructible_v<stored_type, args_t...>)
+    template <typename... Args>
+    void set(Args&&... args)
+        noexcept(std::is_nothrow_constructible_v<stored_type, Args...>)
     {
         auto& payload = static_cast<optional_base*>(this)->payload();
-        if constexpr (has_disengaged_initializer_v<policy>)
-            payload.set(std::forward<args_t>(args)...);
+        if constexpr (has_disengaged_initializer_v<Policy>)
+            payload.set(std::forward<Args>(args)...);
         else
         {
-            payload.construct(std::forward<args_t>(args)...);
+            payload.construct(std::forward<Args>(args)...);
             payload.set();
         }
     }
@@ -443,42 +442,44 @@ protected:
     }
 };
 
-// Class template that takes care of copy/move constructors of optional.
+/*
+Class template that takes care of copy/move constructors of optional.
 
-// Such a separate base class template is necessary in order to
-// conditionally make copy/move constructors trivial.
+Such a separate base class template is necessary in order to
+conditionally make copy/move constructors trivial.
 
-// When the contained value is trivally copy/move constructible,
-// the copy/move constructors of optional_base will invoke the
-// trivial copy/move constructor of optional_payload. Otherwise,
-// they will invoke optional_payload(bool, const optional_payload&)
-// or optional_payload(bool, optional_payload&&) to initialize
-// the contained value, if copying/moving an engaged optional.
+When the contained value is trivally copy/move constructible,
+the copy/move constructors of optional_base will invoke the
+trivial copy/move constructor of optional_payload. Otherwise,
+they will invoke optional_payload(bool, const optional_payload&)
+or optional_payload(bool, optional_payload&&) to initialize
+the contained value, if copying/moving an engaged optional.
 
-// Whether the other special members are trivial is determined by the
-// optional_payload<T> specialization used for the m_payload member.
+Whether the other special members are trivial is determined by the
+optional_payload<T> specialization used for the m_payload member.
+*/
 template <
     typename T,
-    typename policy,
+    typename Policy,
     bool = std::is_trivially_copy_constructible_v<T>,
     bool = std::is_trivially_move_constructible_v<T>>
-class optional_base : public optional_base_impl<T, policy, optional_base<T, policy>>
+class optional_base : public optional_base_impl<T, Policy, optional_base<T, Policy>>
 {
 public:
     // Constructor for disengaged optionals.
     constexpr optional_base() = default;
 
     // Constructors for engaged optionals.
-    template <typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, args_t&&...>)>
-    explicit constexpr optional_base(std::in_place_t, args_t&&... args)
-        : m_payload{std::in_place, std::forward<args_t>(args)...} {}
+    template <typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+    explicit constexpr optional_base(std::in_place_t, Args&&... args)
+        : m_payload{std::in_place, std::forward<Args>(args)...} {}
 
-    template <typename U, typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, args_t&&...>)>
+    template <typename U, typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
     explicit constexpr optional_base(
-        std::in_place_t, std::initializer_list<U> ilist, args_t&&... args)
-        : m_payload{std::in_place, ilist, std::forward<args_t>(args)...} {}
+        std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
+        : m_payload{std::in_place, ilist, std::forward<Args>(args)...} {}
 
     constexpr optional_base(const optional_base& other)
         noexcept(std::is_nothrow_copy_constructible_v<T>)
@@ -499,28 +500,28 @@ public:
     [[nodiscard]] constexpr auto& payload() noexcept { return m_payload; }
 
 private:
-    optional_payload<T, policy> m_payload;
+    optional_payload<T, Policy> m_payload;
 };
 
-template <typename T, typename policy>
-class optional_base<T, policy, false, true>
-    : public optional_base_impl<T, policy, optional_base<T, policy>>
+template <typename T, typename Policy>
+class optional_base<T, Policy, false, true>
+    : public optional_base_impl<T, Policy, optional_base<T, Policy>>
 {
 public:
     // Constructor for disengaged optionals.
     constexpr optional_base() = default;
 
     // Constructors for engaged optionals.
-    template <typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, args_t&&...>)>
-    explicit constexpr optional_base(std::in_place_t, args_t&&... args)
-        : m_payload{std::in_place, std::forward<args_t>(args)...} {}
+    template <typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+    explicit constexpr optional_base(std::in_place_t, Args&&... args)
+        : m_payload{std::in_place, std::forward<Args>(args)...} {}
 
-    template <typename U, typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, args_t&&...>)>
+    template <typename U, typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
     explicit constexpr optional_base(
-        std::in_place_t, std::initializer_list<U> ilist, args_t&&... args)
-        : m_payload{std::in_place, ilist, std::forward<args_t>(args)...} {}
+        std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
+        : m_payload{std::in_place, ilist, std::forward<Args>(args)...} {}
 
     constexpr optional_base(const optional_base& other)
         noexcept(std::is_nothrow_copy_constructible_v<T>)
@@ -539,27 +540,27 @@ public:
     [[nodiscard]] constexpr auto& payload() noexcept { return m_payload; }
 
 private:
-    optional_payload<T, policy> m_payload;
+    optional_payload<T, Policy> m_payload;
 };
 
-template <typename T, typename policy>
-class optional_base<T, policy, true, false>
-    : public optional_base_impl<T, policy, optional_base<T, policy>>
+template <typename T, typename Policy>
+class optional_base<T, Policy, true, false>
+    : public optional_base_impl<T, Policy, optional_base<T, Policy>>
 {
 public:
     // Constructor for disengaged optionals.
     constexpr optional_base() = default;
 
     // Constructors for engaged optionals.
-    template <typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, args_t&&...>)>
-    explicit constexpr optional_base(std::in_place_t, args_t&&... args)
-        : m_payload{std::in_place, std::forward<args_t>(args)...} {}
+    template <typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+    explicit constexpr optional_base(std::in_place_t, Args&&... args)
+        : m_payload{std::in_place, std::forward<Args>(args)...} {}
 
-    template <typename U, typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, args_t&&...>)>
-    explicit constexpr optional_base(std::in_place_t, std::initializer_list<U> ilist, args_t&&... args)
-        : m_payload{std::in_place, ilist, std::forward<args_t>(args)...} {}
+    template <typename U, typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
+    explicit constexpr optional_base(std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
+        : m_payload{std::in_place, ilist, std::forward<Args>(args)...} {}
 
     constexpr optional_base(const optional_base&) = default;
 
@@ -578,34 +579,34 @@ public:
     [[nodiscard]] constexpr auto& payload() noexcept { return m_payload; }
 
 private:
-    optional_payload<T, policy> m_payload;
+    optional_payload<T, Policy> m_payload;
 };
 
-template <typename T, typename policy>
-class optional_base<T, policy, true, true>
-    : public optional_base_impl<T, policy, optional_base<T, policy>>
+template <typename T, typename Policy>
+class optional_base<T, Policy, true, true>
+    : public optional_base_impl<T, Policy, optional_base<T, Policy>>
 {
 public:
     // Constructors for disengaged optionals.
     constexpr optional_base() = default;
 
     // Constructors for engaged optionals.
-    template <typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, args_t&&...>)>
-    explicit constexpr optional_base(std::in_place_t, args_t&&... args)
-        : m_payload{std::in_place, std::forward<args_t>(args)...} {}
+    template <typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+    explicit constexpr optional_base(std::in_place_t, Args&&... args)
+        : m_payload{std::in_place, std::forward<Args>(args)...} {}
 
-    template <typename U, typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, args_t&&...>)>
-    explicit constexpr optional_base(std::in_place_t, std::initializer_list<U> ilist, args_t&&... args)
-        : m_payload{std::in_place, ilist, std::forward<args_t>(args)...} {}
+    template <typename U, typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
+    explicit constexpr optional_base(std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
+        : m_payload{std::in_place, ilist, std::forward<Args>(args)...} {}
 
     [[nodiscard]] constexpr auto& payload() const noexcept { return m_payload; }
 
     [[nodiscard]] constexpr auto& payload() noexcept { return m_payload; }
 
 private:
-    optional_payload<T, policy> m_payload;
+    optional_payload<T, Policy> m_payload;
 };
 
 template <typename T>
@@ -618,46 +619,63 @@ using optional_enable_copy_move = enable_copy_move<
 
 } // namespace details
 
-template <typename T, typename policy>
+template <typename T, typename Policy>
 class optional;
 
 namespace details {
 
-template <typename T, typename U, typename policy>
+template <typename T, typename U, typename Policy>
 constexpr bool converts_from_optional =
-    std::is_constructible_v<T, const util::optional<U, policy>&> ||
-    std::is_constructible_v<T, util::optional<U, policy>&> ||
-    std::is_constructible_v<T, const util::optional<U, policy>&&> ||
-    std::is_constructible_v<T, util::optional<U, policy>&&> ||
-    std::is_convertible_v<const util::optional<U, policy>&, T> ||
-    std::is_convertible_v<util::optional<U, policy>&, T> ||
-    std::is_convertible_v<const util::optional<U, policy>&&, T> ||
-    std::is_convertible_v<util::optional<U, policy>&&, T>;
+    std::is_constructible_v<T, const util::optional<U, Policy>&> ||
+    std::is_constructible_v<T, util::optional<U, Policy>&> ||
+    std::is_constructible_v<T, const util::optional<U, Policy>&&> ||
+    std::is_constructible_v<T, util::optional<U, Policy>&&> ||
+    std::is_convertible_v<const util::optional<U, Policy>&, T> ||
+    std::is_convertible_v<util::optional<U, Policy>&, T> ||
+    std::is_convertible_v<const util::optional<U, Policy>&&, T> ||
+    std::is_convertible_v<util::optional<U, Policy>&&, T>;
 
-template <typename T, typename U, typename policy>
+template <typename T, typename U, typename Policy>
 constexpr bool assigns_from_optional =
-    std::is_assignable_v<T&, const util::optional<U, policy>&> ||
-    std::is_assignable_v<T&, util::optional<U, policy>&> ||
-    std::is_assignable_v<T&, const util::optional<U, policy>&&> ||
-    std::is_assignable_v<T&, util::optional<U, policy>&&>;
+    std::is_assignable_v<T&, const util::optional<U, Policy>&> ||
+    std::is_assignable_v<T&, util::optional<U, Policy>&> ||
+    std::is_assignable_v<T&, const util::optional<U, Policy>&&> ||
+    std::is_assignable_v<T&, util::optional<U, Policy>&&>;
 
 } // namespace details
 
-template <typename T, typename policy>
+// This policy provides equivalent semantics with std::optional.
+class default_policy
+{
+public:
+    constexpr default_policy(const bool engaged) noexcept
+        : m_engaged{engaged} {}
+
+    [[nodiscard]] constexpr bool is_engaged() const noexcept { return m_engaged; }
+
+    constexpr void set() noexcept { m_engaged = true; }
+
+    constexpr void disengage() noexcept { m_engaged = false; }
+
+private:
+    bool m_engaged;
+};
+
+template <typename T, typename Policy = default_policy>
 class optional
-    : private details::optional_base<T, policy>
+    : private details::optional_base<T, Policy>
     , private details::optional_enable_copy_move<T>
 {
     static_assert(!std::is_same_v<std::remove_cv_t<T>, std::nullopt_t>);
     static_assert(!std::is_same_v<std::remove_cv_t<T>, std::in_place_t>);
     static_assert(!std::is_reference_v<T>);
-    static_assert(std::is_trivially_copy_constructible_v<policy>);
-    static_assert(std::is_trivially_move_constructible_v<policy>);
-    static_assert(std::is_trivially_copy_assignable_v<policy>);
-    static_assert(std::is_trivially_move_assignable_v<policy>);
-    static_assert(std::is_trivially_destructible_v<policy>);
+    static_assert(std::is_trivially_copy_constructible_v<Policy>);
+    static_assert(std::is_trivially_move_constructible_v<Policy>);
+    static_assert(std::is_trivially_copy_assignable_v<Policy>);
+    static_assert(std::is_trivially_move_assignable_v<Policy>);
+    static_assert(std::is_trivially_destructible_v<Policy>);
 
-    using base = details::optional_base<T, policy>;
+    using base = details::optional_base<T, Policy>;
 
 public:
     using value_type = T;
@@ -669,7 +687,7 @@ public:
     // Converting constructors for engaged optionals.
     template <typename U = T,
         Q_UTIL_REQUIRES(
-            !std::is_same_v<optional<T, policy>, std::decay_t<U>> &&
+            !std::is_same_v<optional<T, Policy>, std::decay_t<U>> &&
             !std::is_same_v<std::in_place_t, std::decay_t<U>> &&
             std::is_constructible_v<T, U&&> &&
             std::is_convertible_v<U&&, T>)>
@@ -678,71 +696,71 @@ public:
 
     template <typename U = T,
         Q_UTIL_REQUIRES(
-            !std::is_same_v<optional<T, policy>, std::decay_t<U>> &&
+            !std::is_same_v<optional<T, Policy>, std::decay_t<U>> &&
             !std::is_same_v<std::in_place_t, std::decay_t<U>> &&
             std::is_constructible_v<T, U&&> &&
             !std::is_convertible_v<U&&, T>)>
     explicit constexpr optional(U&& t)
         : base{std::in_place, std::forward<U>(t)} {}
 
-    template <typename U, typename other_policy,
+    template <typename U, typename Policy2,
         Q_UTIL_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, const U&> &&
             std::is_convertible_v<const U&, T> &&
-            !details::converts_from_optional<T, U, other_policy>)>
-    constexpr optional(const optional<U, other_policy>& other)
+            !details::converts_from_optional<T, U, Policy2>)>
+    constexpr optional(const optional<U, Policy2>& other)
     {
         if (other)
             emplace(*other);
     }
 
-    template <typename U, typename other_policy,
+    template <typename U, typename Policy2,
         Q_UTIL_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, const U&> &&
             !std::is_convertible_v<const U&, T> &&
-            !details::converts_from_optional<T, U, other_policy>)>
-    explicit constexpr optional(const optional<U, other_policy>& other)
+            !details::converts_from_optional<T, U, Policy2>)>
+    explicit constexpr optional(const optional<U, Policy2>& other)
     {
         if (other)
             emplace(*other);
     }
 
-    template <typename U, typename other_policy,
+    template <typename U, typename Policy2,
         Q_UTIL_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, U&&> &&
             std::is_convertible_v<U&&, T> &&
-            !details::converts_from_optional<T, U, other_policy>)>
-    constexpr optional(optional<U, other_policy>&& other)
+            !details::converts_from_optional<T, U, Policy2>)>
+    constexpr optional(optional<U, Policy2>&& other)
     {
         if (other)
             emplace(std::move(*other));
     }
 
-    template <typename U, typename other_policy,
+    template <typename U, typename Policy2,
         Q_UTIL_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, U&&> &&
             !std::is_convertible_v<U&&, T> &&
-            !details::converts_from_optional<T, U, other_policy>)>
-    explicit constexpr optional(optional<U, other_policy>&& other)
+            !details::converts_from_optional<T, U, Policy2>)>
+    explicit constexpr optional(optional<U, Policy2>&& other)
     {
         if (other)
             emplace(std::move(*other));
     }
 
-    template <typename... args_t,
-             Q_UTIL_REQUIRES(std::is_constructible_v<T, args_t&&...>)>
-    explicit constexpr optional(std::in_place_t, args_t&&... args)
-        : base{std::in_place, std::forward<args_t>(args)...} {}
+    template <typename... Args,
+             Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+    explicit constexpr optional(std::in_place_t, Args&&... args)
+        : base{std::in_place, std::forward<Args>(args)...} {}
 
-    template <typename U, typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, args_t&&...>)>
+    template <typename U, typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
     explicit constexpr optional(
-        std::in_place_t, std::initializer_list<U> ilist, args_t&&... args)
-        : base{std::in_place, ilist, std::forward<args_t>(args)...} {}
+        std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
+        : base{std::in_place, ilist, std::forward<Args>(args)...} {}
 
     optional& operator=(std::nullopt_t) noexcept
     {
@@ -752,7 +770,7 @@ public:
 
     template <typename U = T,
         Q_UTIL_REQUIRES(
-            !std::is_same_v<optional<T, policy>, std::decay_t<U>> &&
+            !std::is_same_v<optional<T, Policy>, std::decay_t<U>> &&
             std::is_constructible_v<T, U> &&
             !(std::is_scalar_v<T> &&
             std::is_same_v<T, std::decay_t<U>>) &&
@@ -769,14 +787,14 @@ public:
 
     template <
         typename U,
-        typename other_policy,
+        typename Policy2,
         Q_UTIL_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, const U&> &&
             std::is_assignable_v<T&, const U&> &&
-            !details::converts_from_optional<T, U, other_policy> &&
-            !details::assigns_from_optional<T, U, other_policy>)>
-    optional& operator=(const optional<U, other_policy>& other)
+            !details::converts_from_optional<T, U, Policy2> &&
+            !details::assigns_from_optional<T, U, Policy2>)>
+    optional& operator=(const optional<U, Policy2>& other)
     {
         if (other)
         {
@@ -791,14 +809,14 @@ public:
         return *this;
     }
 
-    template <typename U, typename other_policy,
+    template <typename U, typename Policy2,
         Q_UTIL_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, U&&> &&
             std::is_assignable_v<T&, U&&> &&
-            !details::converts_from_optional<T, U, other_policy> &&
-            !details::assigns_from_optional<T, U, other_policy>)>
-    optional& operator=(optional<U, other_policy>&& other)
+            !details::converts_from_optional<T, U, Policy2> &&
+            !details::assigns_from_optional<T, U, Policy2>)>
+    optional& operator=(optional<U, Policy2>&& other)
     {
         if (other)
         {
@@ -813,21 +831,21 @@ public:
         return *this;
     }
 
-    template <typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, args_t&&...>)>
-    T& emplace(args_t&&... args)
+    template <typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+    T& emplace(Args&&... args)
     {
         this->destruct();
-        this->construct(std::forward<args_t>(args)...);
+        this->construct(std::forward<Args>(args)...);
         return this->get();
     }
 
-    template <typename U, typename... args_t,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>, args_t&&...>)>
-    T& emplace(std::initializer_list<U> ilist, args_t&&... args)
+    template <typename U, typename... Args,
+        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>, Args&&...>)>
+    T& emplace(std::initializer_list<U> ilist, Args&&... args)
     {
         this->destruct();
-        this->construct(ilist, std::forward<args_t>(args)...);
+        this->construct(ilist, std::forward<Args>(args)...);
         return this->get();
     }
 
@@ -870,14 +888,16 @@ public:
 
     [[nodiscard]] constexpr T& value() &
     {
-        return this->is_engaged() ? this->get()
-                                  : (throw std::bad_optional_access{}, this->get());
+        return this->is_engaged()
+            ? this->get()
+            : (throw std::bad_optional_access{}, this->get());
     }
 
     [[nodiscard]] constexpr const T& value() const&
     {
-        return this->is_engaged() ? this->get()
-                                  : (throw std::bad_optional_access{}, this->get());
+        return this->is_engaged()
+            ? this->get()
+            : (throw std::bad_optional_access{}, this->get());
     }
 
     [[nodiscard]] constexpr T&& value() &&
@@ -900,8 +920,9 @@ public:
         static_assert(std::is_copy_constructible_v<T>);
         static_assert(std::is_convertible_v<U&&, T>);
 
-        return this->is_engaged() ? this->get()
-                                  : static_cast<T>(std::forward<U>(default_value));
+        return this->is_engaged()
+            ? this->get()
+            : static_cast<T>(std::forward<U>(default_value));
     }
 
     template <typename U>
@@ -910,256 +931,276 @@ public:
         static_assert(std::is_move_constructible_v<T>);
         static_assert(std::is_convertible_v<U&&, T>);
 
-        return this->is_engaged() ? std::move(this->get())
-                                  : static_cast<T>(std::forward<U>(default_value));
+        return this->is_engaged()
+            ? std::move(this->get())
+            : static_cast<T>(std::forward<U>(default_value));
     }
 
     void reset() noexcept { this->reset_impl(); }
 };
 
-template <typename T, typename policy, typename U, typename other_policy,
+template <typename T, typename Policy1, typename U, typename Policy2,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator==(
-    const optional<T, policy>& lhs, const optional<U, other_policy>& rhs)
+    const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
     return static_cast<bool>(lhs) == static_cast<bool>(rhs) && (!lhs || *lhs == *rhs);
 }
 
-template <typename T, typename policy, typename U, typename other_policy,
+template <typename T, typename Policy1, typename U, typename Policy2,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator!=(
-    const optional<T, policy>& lhs, const optional<U, other_policy>& rhs)
+    const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
     return static_cast<bool>(lhs) != static_cast<bool>(rhs) ||
         (static_cast<bool>(lhs) && *lhs != *rhs);
 }
 
-template <typename T, typename policy, typename U, typename other_policy,
+template <typename T, typename Policy1, typename U, typename Policy2,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<(
-    const optional<T, policy>& lhs, const optional<U, other_policy>& rhs)
+    const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
     return static_cast<bool>(rhs) && (!lhs || *lhs < *rhs);
 }
 
-template <typename T, typename policy, typename U, typename other_policy,
+template <typename T, typename Policy1, typename U, typename Policy2,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>(
-    const optional<T, policy>& lhs, const optional<U, other_policy>& rhs)
+    const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
     return static_cast<bool>(lhs) && (!lhs || *lhs > *rhs);
 }
 
-template <typename T, typename policy, typename U, typename other_policy,
+template <typename T, typename Policy1, typename U, typename Policy2,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<=(
-    const optional<T, policy>& lhs, const optional<U, other_policy>& rhs)
+    const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
     return static_cast<bool>(rhs) && (!lhs || *lhs <= *rhs);
 }
 
-template <typename T, typename policy, typename U, typename other_policy,
+template <typename T, typename Policy1, typename U, typename Policy2,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>=(
-    const optional<T, policy>& lhs, const optional<U, other_policy>& rhs)
+    const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
     return static_cast<bool>(lhs) && (!lhs || *lhs >= *rhs);
 }
 
 // Comparisons with nullopt.
 
-template <typename T, typename policy>
+template <typename T, typename Policy>
 [[nodiscard]] constexpr bool operator==(
-    const optional<T, policy>& lhs, const std::nullopt_t) noexcept
+    const optional<T, Policy>& lhs, const std::nullopt_t) noexcept
 {
     return !lhs;
 }
 
-template <typename T, typename policy>
+template <typename T, typename Policy>
 [[nodiscard]] constexpr bool operator==(
-    const std::nullopt_t, const optional<T, policy>& rhs) noexcept
+    const std::nullopt_t, const optional<T, Policy>& rhs) noexcept
 {
     return !rhs;
 }
 
-template <typename T, typename policy>
+template <typename T, typename Policy>
 [[nodiscard]] constexpr bool operator!=(
-    const optional<T, policy>& lhs, std::nullopt_t) noexcept
+    const optional<T, Policy>& lhs, std::nullopt_t) noexcept
 {
     return static_cast<bool>(lhs);
 }
 
-template <typename T, typename policy>
+template <typename T, typename Policy>
 [[nodiscard]] constexpr bool operator!=(
-    std::nullopt_t, const optional<T, policy>& rhs) noexcept
+    std::nullopt_t, const optional<T, Policy>& rhs) noexcept
 {
     return static_cast<bool>(rhs);
 }
 
-template <typename T, typename policy>
-[[nodiscard]] constexpr bool operator<(const optional<T, policy>&, std::nullopt_t) noexcept
+template <typename T, typename Policy>
+[[nodiscard]] constexpr bool operator<(const optional<T, Policy>&, std::nullopt_t) noexcept
 {
     return false;
 }
 
-template <typename T, typename policy>
-[[nodiscard]] constexpr bool operator<(std::nullopt_t, const optional<T, policy>& rhs) noexcept
+template <typename T, typename Policy>
+[[nodiscard]] constexpr bool operator<(std::nullopt_t, const optional<T, Policy>& rhs) noexcept
 {
     return static_cast<bool>(rhs);
 }
 
-template <typename T, typename policy>
-[[nodiscard]] constexpr bool operator>(const optional<T, policy>& lhs, std::nullopt_t) noexcept
+template <typename T, typename Policy>
+[[nodiscard]] constexpr bool operator>(const optional<T, Policy>& lhs, std::nullopt_t) noexcept
 {
     return static_cast<bool>(lhs);
 }
 
-template <typename T, typename policy>
-[[nodiscard]] constexpr bool operator>(std::nullopt_t, const optional<T, policy>&) noexcept
+template <typename T, typename Policy>
+[[nodiscard]] constexpr bool operator>(std::nullopt_t, const optional<T, Policy>&) noexcept
 {
     return false;
 }
 
-template <typename T, typename policy>
+template <typename T, typename Policy>
 [[nodiscard]] constexpr bool operator<=(
-    const optional<T, policy>& lhs, std::nullopt_t) noexcept
+    const optional<T, Policy>& lhs, std::nullopt_t) noexcept
 {
     return !lhs;
 }
 
-template <typename T, typename policy>
-[[nodiscard]] constexpr bool operator<=(std::nullopt_t, const optional<T, policy>&) noexcept
+template <typename T, typename Policy>
+[[nodiscard]] constexpr bool operator<=(std::nullopt_t, const optional<T, Policy>&) noexcept
 {
     return true;
 }
 
-template <typename T, typename policy>
-[[nodiscard]] constexpr bool operator>=(const optional<T, policy>&, std::nullopt_t) noexcept
+template <typename T, typename Policy>
+[[nodiscard]] constexpr bool operator>=(const optional<T, Policy>&, std::nullopt_t) noexcept
 {
     return true;
 }
 
-template <typename T, typename policy>
+template <typename T, typename Policy>
 [[nodiscard]] constexpr bool operator>=(
-    std::nullopt_t, const optional<T, policy>& rhs) noexcept
+    std::nullopt_t, const optional<T, Policy>& rhs) noexcept
 {
     return !rhs;
 }
 
 // Comparisons with value type.
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator==(const optional<T, policy>& lhs, const U& rhs)
+[[nodiscard]] constexpr bool operator==(const optional<T, Policy>& lhs, const U& rhs)
 {
     return lhs && *lhs == rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator==(const U& lhs, const optional<T, policy>& rhs)
+[[nodiscard]] constexpr bool operator==(const U& lhs, const optional<T, Policy>& rhs)
 {
     return rhs && lhs == *rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator!=(const optional<T, policy>& lhs, const U& rhs)
+[[nodiscard]] constexpr bool operator!=(const optional<T, Policy>& lhs, const U& rhs)
 {
     return !lhs || *lhs != rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator!=(const U& lhs, const optional<T, policy>& rhs)
+[[nodiscard]] constexpr bool operator!=(const U& lhs, const optional<T, Policy>& rhs)
 {
     return !rhs || lhs != *rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator<(const optional<T, policy>& lhs, const U& rhs)
+[[nodiscard]] constexpr bool operator<(const optional<T, Policy>& lhs, const U& rhs)
 {
     return !lhs || *lhs < rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator<(const U& lhs, const optional<T, policy>& rhs)
+[[nodiscard]] constexpr bool operator<(const U& lhs, const optional<T, Policy>& rhs)
 {
     return rhs && lhs < *rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator>(const optional<T, policy>& lhs, const U& rhs)
+[[nodiscard]] constexpr bool operator>(const optional<T, Policy>& lhs, const U& rhs)
 {
     return lhs && *lhs > rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator>(const U& lhs, const optional<T, policy>& rhs)
+[[nodiscard]] constexpr bool operator>(const U& lhs, const optional<T, Policy>& rhs)
 {
     return !rhs || lhs > *rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator<=(const optional<T, policy>& lhs, const U& rhs)
+[[nodiscard]] constexpr bool operator<=(const optional<T, Policy>& lhs, const U& rhs)
 {
     return !lhs || *lhs <= rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator<=(const U& lhs, const optional<T, policy>& rhs)
+[[nodiscard]] constexpr bool operator<=(const U& lhs, const optional<T, Policy>& rhs)
 {
     return rhs && lhs <= *rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator>=(const optional<T, policy>& lhs, const U& rhs)
+[[nodiscard]] constexpr bool operator>=(const optional<T, Policy>& lhs, const U& rhs)
 {
     return lhs && *lhs >= rhs;
 }
 
-template <typename T, typename policy, typename U,
+template <typename T, typename Policy, typename U,
     Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
-[[nodiscard]] constexpr bool operator>=(const U& lhs, const optional<T, policy>& rhs)
+[[nodiscard]] constexpr bool operator>=(const U& lhs, const optional<T, Policy>& rhs)
 {
     return !rhs || lhs >= *rhs;
 }
 
-template <typename T, typename policy,
+template <typename T, typename Policy,
     Q_UTIL_REQUIRES(std::is_move_constructible_v<T> && std::is_swappable_v<T>)>
-void swap(optional<T, policy>& lhs, optional<T, policy>& rhs) noexcept(noexcept(lhs.swap(rhs)))
+void swap(optional<T, Policy>& lhs, optional<T, Policy>& rhs) noexcept(noexcept(lhs.swap(rhs)))
 {
     lhs.swap(rhs);
 }
 
-template <typename T, typename policy,
+template <typename T, typename Policy,
     Q_UTIL_REQUIRES(!(std::is_move_constructible_v<T> && std::is_swappable_v<T>))>
-void swap(optional<T, policy>&, optional<T, policy>&) = delete;
+void swap(optional<T, Policy>&, optional<T, Policy>&) = delete;
 
-template <typename policy, typename T>
-[[nodiscard]] constexpr optional<std::decay_t<T>, policy> make_optional(T&& value)
+template <typename T>
+[[nodiscard]] constexpr optional<std::decay_t<T>> make_optional(T&& value)
 {
-    return optional<std::decay_t<T>, policy>{std::forward<T>(value)};
+    return optional<std::decay_t<T>>{std::forward<T>(value)};
 }
 
-template <typename T, typename policy, typename... args_t>
-[[nodiscard]] constexpr optional<T, policy> make_optional(args_t&&... args)
+template <typename Policy, typename T>
+[[nodiscard]] constexpr optional<std::decay_t<T>, Policy> make_optional(T&& value)
 {
-    return optional<T, policy>{std::in_place, std::forward<args_t>(args)...};
+    return optional<std::decay_t<T>, Policy>{std::forward<T>(value)};
 }
 
-template <typename T, typename policy, typename U, typename... args_t>
-[[nodiscard]] constexpr optional<T, policy>
-    make_optional(std::initializer_list<U> ilist, args_t&&... args)
+template <typename T, typename... Args>
+[[nodiscard]] constexpr optional<T> make_optional(Args&&... args)
 {
-    return optional<T, policy>{std::in_place, ilist, std::forward<args_t>(args)...};
+    return optional<T>{std::in_place, std::forward<Args>(args)...};
+}
+
+template <typename T, typename Policy, typename... Args>
+[[nodiscard]] constexpr optional<T, Policy> make_optional(Args&&... args)
+{
+    return optional<T, Policy>{std::in_place, std::forward<Args>(args)...};
+}
+
+template <typename T, typename U, typename... Args>
+[[nodiscard]] constexpr optional<T>
+    make_optional(std::initializer_list<U> ilist, Args&&... args)
+{
+    return optional<T>{std::in_place, ilist, std::forward<Args>(args)...};
+}
+
+template <typename T, typename Policy, typename U, typename... Args>
+[[nodiscard]] constexpr optional<T, Policy>
+    make_optional(std::initializer_list<U> ilist, Args&&... args)
+{
+    return optional<T, Policy>{std::in_place, ilist, std::forward<Args>(args)...};
 }
 
 template <typename T>

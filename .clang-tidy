@@ -1,0 +1,105 @@
+Checks: >-
+  -*,
+  clang-analyzer-*,
+  -clang-analyzer-alpha.*,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  modernize-*,
+  -modernize-avoid-c-arrays,
+  -modernize-use-auto,
+  -modernize-use-trailing-return-type,
+  -modernize-use-using,
+  performance-*,
+  portability-*,
+  readability-*,
+  -readability-avoid-const-params-in-decls,
+  -readability-braces-around-statements,
+  -readability-else-after-return,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-redundant-declaration,
+  -readability-static-accessed-through-instance,
+  -readability-uppercase-literal-suffix
+# We rely on typedef's for C/C++ composite headers.
+# Const parameters in declarations should be avoided but the check here triggers false positives.
+# Friend declarations trigger false positives for redundant declarations.
+WarningsAsErrors: '*'
+HeaderFilterRegex: 'src/.*'
+AnalyzeTemporaryDtors: false
+FormatStyle: none
+CheckOptions:
+  - key: modernize-loop-convert.MaxCopySize
+    value: '16'
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+  - key: modernize-loop-convert.NamingStyle
+    value: CamelCase
+  - key: modernize-make-shared.IgnoreMacros
+    value: '1'
+  - key: modernize-make-shared.IncludeStyle
+    value: '0'
+  - key: modernize-make-shared.MakeSmartPtrFunction
+    value: 'std::make_shared'
+  - key: modernize-make-shared.MakeSmartPtrFunctionHeader
+    value: memory
+  - key: modernize-make-unique.IgnoreMacros
+    value: '1'
+  - key: modernize-make-unique.IncludeStyle
+    value: '0'
+  - key: modernize-make-unique.MakeSmartPtrFunction
+    value: 'std::make_unique'
+  - key: modernize-make-unique.MakeSmartPtrFunctionHeader
+    value: memory
+  - key: modernize-pass-by-value.IncludeStyle
+    value: llvm
+  - key: modernize-pass-by-value.ValuesOnly
+    value: '0'
+  - key: modernize-raw-string-literal.ReplaceShorterLiterals
+    value: '0'
+  - key: modernize-replace-auto-ptr.IncludeStyle
+    value: llvm
+  - key: modernize-replace-random-shuffle.IncludeStyle
+    value: llvm
+  - key: modernize-use-auto.RemoveStars
+    value: '0'
+  - key: modernize-use-default-member-init.IgnoreMacros
+    value: '1'
+  - key: modernize-use-default-member-init.UseAssignment
+    value: '0'
+  - key: modernize-use-emplace.ContainersWithPushBack
+    value: '::std::vector;::std::list;::std::deque'
+  - key: modernize-use-emplace.SmartPointers
+    value: '::std::shared_ptr;::std::unique_ptr;::std::weak_ptr'
+  - key: modernize-use-emplace.TupleMakeFunctions
+    value: '::std::make_pair;::std::make_tuple'
+  - key: modernize-use-emplace.TupleTypes
+    value: '::std::pair;::std::tuple'
+  - key: modernize-use-equals-default.IgnoreMacros
+    value: '1'
+  - key: modernize-use-noexcept.ReplacementString
+    value: ''
+  - key: modernize-use-noexcept.UseNoexceptFalse
+    value: '1'
+  - key: modernize-use-nullptr.NullMacros
+    value: 'NULL'
+  - key: modernize-use-transparent-functors.SafeMode
+    value: '0'
+  - key: readability-function-size.BranchThreshold
+    value: '4294967295'
+  - key: readability-function-size.LineThreshold
+    value: '4294967295'
+  - key: readability-function-size.NestingThreshold
+    value: '4294967295'
+  - key: readability-function-size.ParameterThreshold
+    value: '4294967295'
+  - key: readability-function-size.StatementThreshold
+    value: '800'
+  - key: readability-identifier-naming.IgnoreFailedSplit
+    value: '0'
+  - key: readability-implicit-bool-conversion.AllowIntegerConditions
+    value: '0'
+  - key: readability-implicit-bool-conversion.AllowPointerConditions
+    value: '1'
+  - key: readability-simplify-boolean-expr.ChainedConditionalAssignment
+    value: '0'
+  - key: readability-simplify-boolean-expr.ChainedConditionalReturn
+    value: '0'
