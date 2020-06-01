@@ -23,43 +23,36 @@ constexpr bool has_disengaged_initializer_v = is_detected_v<disengaged_initializ
 // This class template manages construction/destruction of
 // the contained value for a util::optional.
 template <typename T, typename Policy>
-class optional_payload_base : private Policy
+class optional_payload_base
 {
     using stored_type = std::remove_const_t<T>;
 
 public:
-    template <typename dummy = Policy,
-        Q_UTIL_REQUIRES(!has_disengaged_initializer_v<dummy>)>
-    constexpr optional_payload_base() noexcept
-        : Policy{false} {}
+    struct dummy_t {}; // To prevent assignment operators from being implicitly deleted.
 
-    template <typename dummy = Policy,
-        Q_UTIL_REQUIRES(has_disengaged_initializer_v<dummy>)>
-    constexpr optional_payload_base() noexcept
-        : Policy{false}
-        , m_payload{std::in_place, static_cast<Policy&>(*this).disengaged_initializer()} {}
+    static constexpr dummy_t dummy{};
+
+    optional_payload_base() = default;
 
     template <typename... Args>
     constexpr optional_payload_base(std::in_place_t, Args&&... args)
-        : Policy{true}
-        , m_payload{std::in_place, std::forward<Args>(args)...}
+        : m_policy_payload_pack{std::in_place, std::forward<Args>(args)...}
     {
         assert(is_engaged());
     }
 
     template <typename U, typename... Args>
     constexpr optional_payload_base(std::initializer_list<U> ilist, Args&&... args)
-        : Policy{true}
-        , m_payload{ilist, std::forward<Args>(args)...}
+        : m_policy_payload_pack{ilist, std::forward<Args>(args)...}
     {
         assert(is_engaged());
     }
 
     // Constructor used by optional_base copy constructor when the
     // contained value is not trivially copy constructible.
-    constexpr optional_payload_base(bool, const optional_payload_base& other)
+    constexpr optional_payload_base(const optional_payload_base& other, dummy_t)
         noexcept(std::is_nothrow_copy_constructible_v<T>)
-        : Policy{other.is_engaged()}
+        : m_policy_payload_pack{other.is_engaged()}
     {
         if (other.is_engaged())
             construct(other.get());
@@ -67,36 +60,36 @@ public:
 
     // Constructor used by optional_base move constructor when the
     // contained value is not trivially move constructible.
-    constexpr optional_payload_base(bool, optional_payload_base&& other)
+    constexpr optional_payload_base(optional_payload_base&& other, dummy_t)
         noexcept(std::is_nothrow_move_constructible_v<T>)
-        : Policy{other.is_engaged()}
+        : m_policy_payload_pack{other.is_engaged()}
     {
         if (other.is_engaged())
             construct(std::move(other.get()));
     }
 
     template <typename... Args>
-    void construct(Args&&... args)
+    constexpr void construct(Args&&... args)
         noexcept(std::is_nothrow_constructible_v<stored_type, Args...>)
     {
         ::new
-            (static_cast<void*>(std::addressof(m_payload.m_value)))
+            (static_cast<void*>(std::addressof(payload().value)))
             stored_type(std::forward<Args>(args)...);
     }
 
     template <typename dummy = Policy, typename... Args,
         Q_UTIL_REQUIRES(has_disengaged_initializer_v<dummy>)>
-    void set(Args&&... args)
+    constexpr void set(Args&&... args)
         noexcept(std::is_nothrow_constructible_v<stored_type, Args...>)
     {
-        static_cast<Policy*>(this)->set(m_payload.m_value, std::forward<Args>(args)...);
+        policy().set(payload().value, std::forward<Args>(args)...);
     }
 
     template <typename dummy = Policy,
         Q_UTIL_REQUIRES(!has_disengaged_initializer_v<dummy>)>
-    void set() noexcept
+    constexpr void set() noexcept
     {
-        static_cast<Policy*>(this)->set();
+        policy().set();
     }
 
     constexpr void copy_assign(const optional_payload_base& other)
@@ -141,26 +134,26 @@ public:
         else if constexpr (
             !std::is_trivially_destructible_v<T> && has_disengaged_initializer_v<Policy>)
         {
-            static_cast<Policy*>(this)->cleanup(m_payload.m_value);
+            policy().cleanup(payload().value);
         }
     }
 
     [[nodiscard]] constexpr bool is_engaged() const noexcept
     {
         if constexpr (has_disengaged_initializer_v<Policy>)
-            return static_cast<const Policy*>(this)->is_engaged(m_payload.m_value);
+            return policy().is_engaged(payload().value);
         else
-            return static_cast<const Policy*>(this)->is_engaged();
+            return policy().is_engaged();
     }
 
     constexpr void unchecked_reset() noexcept
     {
         if constexpr (has_disengaged_initializer_v<Policy>)
-            static_cast<Policy*>(this)->disengage(get());
+            policy().disengage(get());
         else
         {
             get().~stored_type();
-            static_cast<Policy*>(this)->disengage();
+            policy().disengage();
         }
     }
 
@@ -178,14 +171,14 @@ public:
     {
         assert(is_engaged());
 
-        return m_payload.m_value;
+        return payload().value;
     }
 
     [[nodiscard]] constexpr T& get() noexcept
     {
         assert(is_engaged());
 
-        return m_payload.m_value;
+        return payload().value;
     }
 
 private:
@@ -195,49 +188,95 @@ private:
     union storage
     {
         constexpr storage() noexcept
-            : m_empty{} {}
+            : empty{} {}
 
         // Not using brace initializers here to allow potential narrowing conversions.
-
         template <typename... Args>
         constexpr storage(std::in_place_t, Args&&... args)
-            : m_value(std::forward<Args>(args)...) {}
+            : value(std::forward<Args>(args)...) {}
 
+        // Not using brace initializers here to allow potential narrowing conversions.
         template <typename V, typename... Args>
         constexpr storage(std::initializer_list<V> ilist, Args&&... args)
-            : m_value(ilist, std::forward<Args>(args)...) {}
+            : value(ilist, std::forward<Args>(args)...) {}
 
-        empty_byte m_empty;
-        stored_type m_value;
+        empty_byte empty;
+        stored_type value;
     };
 
     template <typename U>
     union storage<U, false>
     {
         constexpr storage() noexcept
-            : m_empty{} {}
+            : empty{} {}
 
         // Not using brace initializers here to allow potential narrowing conversions.
         template <typename... Args>
         constexpr storage(std::in_place_t, Args&&... args)
-            : m_value(std::forward<Args>(args)...) {}
+            : value(std::forward<Args>(args)...) {}
 
         // Not using brace initializers here to allow potential narrowing conversions.
         template <typename V, typename... Args>
         constexpr storage(std::initializer_list<V> ilist, Args&&... args)
-            : m_value(ilist, std::forward<Args>(args)...) {}
+            : value(ilist, std::forward<Args>(args)...) {}
 
         // User-provided destructor is needed when U has a non-trivial dtor.
         // Clang Tidy does not understand non-default destuctors of unions.
         // NOLINTNEXTLINE(modernize-use-equals-default)
         ~storage() {}
 
-        empty_byte m_empty;
-        stored_type m_value;
+        empty_byte empty;
+        stored_type value;
     };
 
-    // NOLINTNEXTLINE(modernize-use-default-member-init)
-    storage<stored_type> m_payload;
+    struct policy_payload_pack : Policy
+    {
+        // NOLINTNEXTLINE(modernize-use-default-member-init)
+        storage<stored_type> payload;
+
+        constexpr policy_payload_pack(const bool engaged) noexcept
+            : Policy{engaged} {}
+
+        template <typename dummy = Policy,
+            Q_UTIL_REQUIRES(!has_disengaged_initializer_v<dummy>)>
+        constexpr policy_payload_pack() noexcept
+            : Policy{false} {}
+
+        template <typename dummy = Policy,
+            Q_UTIL_REQUIRES(has_disengaged_initializer_v<dummy>)>
+        constexpr policy_payload_pack() noexcept
+            : Policy{false}
+            , payload{std::in_place, static_cast<Policy&>(*this).disengaged_initializer()} {}
+
+        template <typename... Args>
+        constexpr policy_payload_pack(std::in_place_t, Args&&... args)
+            : Policy{true}
+            , payload{std::in_place, std::forward<Args>(args)...} {}
+
+        template <typename U, typename... Args>
+        constexpr policy_payload_pack(std::initializer_list<U> ilist, Args&&... args)
+            : Policy{true}
+            , payload{ilist, std::forward<Args>(args)...} {}
+    };
+
+    policy_payload_pack m_policy_payload_pack;
+
+    [[nodiscard]] constexpr auto& payload() const noexcept
+    {
+        return m_policy_payload_pack.payload;
+    }
+
+    [[nodiscard]] constexpr auto& payload() noexcept { return m_policy_payload_pack.payload; }
+
+    [[nodiscard]] constexpr auto& policy() const noexcept
+    {
+        return *static_cast<const Policy*>(&m_policy_payload_pack);
+    }
+
+    [[nodiscard]] constexpr auto& policy() noexcept
+    {
+        return *static_cast<Policy*>(&m_policy_payload_pack);
+    }
 };
 
 // Class template that manages the payload for optionals.
@@ -358,7 +397,9 @@ public:
     using optional_payload<T, Policy, true, copy, move>::optional_payload;
 
     optional_payload() = default;
+
     optional_payload(const optional_payload&) = default;
+
     optional_payload& operator=(const optional_payload&) = default;
 
     // NOLINTNEXTLINE(performance-noexcept-move-constructor)
@@ -428,16 +469,17 @@ protected:
     }
 
     // The get() operations have is_engaged as a precondition.
-
     [[nodiscard]] constexpr const T& get() const noexcept
     {
         assert(is_engaged());
+
         return static_cast<const optional_base*>(this)->payload().get();
     }
 
     [[nodiscard]] constexpr T& get() noexcept
     {
         assert(is_engaged());
+
         return static_cast<optional_base*>(this)->payload().get();
     }
 };
@@ -483,14 +525,14 @@ public:
 
     constexpr optional_base(const optional_base& other)
         noexcept(std::is_nothrow_copy_constructible_v<T>)
-        : m_payload{other.m_payload.is_engaged(), other.m_payload} {}
+        : m_payload{other.m_payload, decltype(m_payload)::dummy} {}
 
     optional_base& operator=(const optional_base&) = default;
 
     constexpr optional_base(optional_base&& other)
         // NOLINTNEXTLINE(performance-noexcept-move-constructor)
         noexcept(std::is_nothrow_move_constructible_v<T>)
-        : m_payload{other.m_payload.is_engaged(), std::move(other.m_payload)} {}
+        : m_payload{std::move(other.m_payload), decltype(m_payload)::dummy} {}
 
     // NOLINTNEXTLINE(performance-noexcept-move-constructor)
     optional_base& operator=(optional_base&&) = default;
@@ -525,7 +567,7 @@ public:
 
     constexpr optional_base(const optional_base& other)
         noexcept(std::is_nothrow_copy_constructible_v<T>)
-        : m_payload{other.m_payload.is_engaged(), other.m_payload} {}
+        : m_payload{other.m_payload, decltype(m_payload)::dummy} {}
 
     optional_base& operator=(const optional_base&) = default;
 
@@ -569,7 +611,7 @@ public:
     constexpr optional_base(optional_base&& other)
         // NOLINTNEXTLINE(performance-noexcept-move-constructor)
         noexcept(std::is_nothrow_move_constructible_v<T>)
-        : m_payload{other.m_payload.is_engaged(), std::move(other.m_payload)} {}
+        : m_payload{std::move(other.m_payload), decltype(m_payload)::dummy} {}
 
     // NOLINTNEXTLINE(performance-noexcept-move-constructor)
     optional_base& operator=(optional_base&&) = default;
