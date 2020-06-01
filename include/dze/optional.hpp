@@ -236,6 +236,7 @@ private:
         stored_type m_value;
     };
 
+    // NOLINTNEXTLINE(modernize-use-default-member-init)
     storage<stored_type> m_payload;
 };
 
@@ -258,9 +259,8 @@ public:
     optional_payload() = default;
 };
 
-// TODO: Clang-Tidy 6 generates incorrect warnings for defaulted move
-// constructors/assignment operators. Disabling the check locally in this
-// version. This should be removed on move to next version.
+// Clang-Tidy generates incorrect warnings for defaulted move constructors/assignment
+// operators.
 
 // Payload for optionals with non-trivial copy construction/assignment.
 template <typename T, typename Policy>
@@ -989,17 +989,16 @@ template <typename T, typename Policy1, typename U, typename Policy2,
 }
 
 // Comparisons with nullopt.
-
 template <typename T, typename Policy>
 [[nodiscard]] constexpr bool operator==(
-    const optional<T, Policy>& lhs, const std::nullopt_t) noexcept
+    const optional<T, Policy>& lhs, std::nullopt_t) noexcept
 {
     return !lhs;
 }
 
 template <typename T, typename Policy>
 [[nodiscard]] constexpr bool operator==(
-    const std::nullopt_t, const optional<T, Policy>& rhs) noexcept
+    std::nullopt_t, const optional<T, Policy>& rhs) noexcept
 {
     return !rhs;
 }
@@ -1229,11 +1228,9 @@ class optional_reference
 public:
     using value_type = T&;
 
-    constexpr optional_reference() noexcept
-        : m_ptr{nullptr} {}
+    optional_reference() = default;
 
-    constexpr optional_reference(std::nullopt_t) noexcept
-        : m_ptr{nullptr} {}
+    constexpr optional_reference(std::nullopt_t) noexcept {}
 
     template <typename U = T,
         Q_UTIL_REQUIRES(std::is_constructible_v<T&, U&>)>
@@ -1328,7 +1325,7 @@ public:
     }
 
 private:
-    T* m_ptr;
+    T* m_ptr = nullptr;
 };
 
 template <typename T, typename U,
