@@ -1,10 +1,10 @@
 include_guard(GLOBAL)
 
-include(FetchContent)
+include(fetch_content)
 
 set(proj_name dze_type_traits)
 
-FetchContent_Populate(
+fetch_content(
     ${proj_name}_proj
     GIT_REPOSITORY https://github.com/dzzze/type_traits.git
     GIT_TAG 76318a79be1be64e00730e3413ac2c36a242a885

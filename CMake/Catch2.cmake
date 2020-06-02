@@ -1,10 +1,10 @@
 include_guard(GLOBAL)
 
-include(FetchContent)
+include(fetch_content)
 
 set(proj_name catch2)
 
-FetchContent_Populate(
+fetch_content(
     ${proj_name}_proj
     GIT_REPOSITORY https://github.com/catchorg/Catch2.git
     GIT_TAG b1b5cb812277f367387844aab46eb2d3b15d03cd
@@ -13,7 +13,6 @@ FetchContent_Populate(
     SOURCE_DIR "${CMAKE_CURRENT_BINARY_DIR}/${proj_name}/source"
     BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/${proj_name}/bin")
 
-set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
 add_subdirectory(${${proj_name}_proj_SOURCE_DIR} ${${proj_name}_proj_BINARY_DIR} EXCLUDE_FROM_ALL)
 
 unset(proj_name)
