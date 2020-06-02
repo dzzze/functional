@@ -187,6 +187,9 @@ private:
     template <typename U, bool = std::is_trivially_destructible_v<U>>
     union storage
     {
+        empty_byte empty;
+        stored_type value;
+
         constexpr storage() noexcept
             : empty{} {}
 
@@ -199,14 +202,14 @@ private:
         template <typename V, typename... Args>
         constexpr storage(std::initializer_list<V> ilist, Args&&... args)
             : value(ilist, std::forward<Args>(args)...) {}
-
-        empty_byte empty;
-        stored_type value;
     };
 
     template <typename U>
     union storage<U, false>
     {
+        empty_byte empty;
+        stored_type value;
+
         constexpr storage() noexcept
             : empty{} {}
 
@@ -224,9 +227,6 @@ private:
         // Clang Tidy does not understand non-default destuctors of unions.
         // NOLINTNEXTLINE(modernize-use-equals-default)
         ~storage() {}
-
-        empty_byte empty;
-        stored_type value;
     };
 
     struct policy_payload_pack : Policy
@@ -237,13 +237,13 @@ private:
         constexpr policy_payload_pack(const bool engaged) noexcept
             : Policy{engaged} {}
 
-        template <typename dummy = Policy,
-            Q_UTIL_REQUIRES(!has_disengaged_initializer_v<dummy>)>
+        template <typename Dummy = Policy,
+            Q_UTIL_REQUIRES(!has_disengaged_initializer_v<Dummy>)>
         constexpr policy_payload_pack() noexcept
             : Policy{false} {}
 
-        template <typename dummy = Policy,
-            Q_UTIL_REQUIRES(has_disengaged_initializer_v<dummy>)>
+        template <typename Dummy = Policy,
+            Q_UTIL_REQUIRES(has_disengaged_initializer_v<Dummy>)>
         constexpr policy_payload_pack() noexcept
             : Policy{false}
             , payload{std::in_place, static_cast<Policy&>(*this).disengaged_initializer()} {}
