@@ -11,21 +11,19 @@ on:
       - master
 
 jobs:
-  build:
-    name: ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }} ${{ matrix.cfg.version }} on ${{ matrix.cfg.os }}
-    runs-on: ${{ matrix.cfg.os }}
+  linux_build:
+    name: Linux ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }} ${{ matrix.cfg.version }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         cfg:
-          - { os: ubuntu-latest, compiler: Clang, version: 9,  config: Debug }
-          - { os: ubuntu-latest, compiler: Clang, version: 9,  config: Release }
-          - { os: ubuntu-latest, compiler: Clang, version: 10, config: Debug }
-          - { os: ubuntu-latest, compiler: Clang, version: 10, config: Release }
-          - { os: ubuntu-latest, compiler: GNU,   version: 9,  config: Debug }
-          - { os: ubuntu-latest, compiler: GNU,   version: 9,  config: Release }
-          - { os: ubuntu-latest, compiler: GNU,   version: 10, config: Debug }
-          - { os: ubuntu-latest, compiler: GNU,   version: 10, config: Release }
+          - { compiler: Clang, version: 9,  config: Debug }
+          - { compiler: Clang, version: 9,  config: Release }
+          - { compiler: GNU,   version: 9,  config: Debug }
+          - { compiler: GNU,   version: 9,  config: Release }
+          - { compiler: GNU,   version: 10, config: Debug }
+          - { compiler: GNU,   version: 10, config: Release }
             #- { os: windows-latest,  name: VS2017, cc: cl,    cxx: cl,      version: x, redefine: Build/Release/ReDefine.exe }
             #- { os: macos-latest,  name: VS2017, cc: cl,    cxx: cl,      version: x, redefine: Build/Release/ReDefine.exe }
     steps:
@@ -52,7 +50,59 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
             -DCMAKE_C_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang || echo gcc)-${{ matrix.cfg.version }} \
             -DCMAKE_CXX_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang++ || echo g++)-${{ matrix.cfg.version }} \
-            -Ddze_optional_sanitize_adress=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
+            -Ddze_optional_sanitize_address=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
+            -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
+            -B build \
+            -S .
+          ninja -C build
+
+  macos_build:
+    name: macOS ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }} ${{ matrix.cfg.version }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg:
+          #- { os: macos-latest, compiler: AppleClang, version: 9,  config: Release }
+          - { compiler: Clang, version: 9,  config: Debug }
+          - { compiler: Clang, version: 9,  config: Release }
+          - { compiler: Clang, version: 10,  config: Debug }
+          - { compiler: Clang, version: 10,  config: Release }
+          - { compiler: GNU,   version: 9,  config: Debug }
+          - { compiler: GNU,   version: 9,  config: Release }
+    steps:
+      - name: Install packages
+        run: |
+          brew install llvm cmake ninja
+          sudo ln -s "$(brew --prefix llvm)/bin/clang-tidy" /usr/local/bin/clang-tidy
+          if [ ${{matrix.cfg.compiler}} = Clang ]
+          then
+            brew install llvm@${{ matrix.cfg.version }}
+            export LIBCLANG_SYSTEM_INCLUDE_DIR="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include"
+            sudo ln -s "$(brew --prefix llvm)/bin/clang" /usr/local/bin/clang-${{ matrix.cfg.version }}
+            sudo ln -s "$(brew --prefix llvm)/bin/clang++" /usr/local/bin/clang++-${{ matrix.cfg.version }}
+          elif [ ${{matrix.cfg.compiler}} = GNU ]
+          then
+            brew install gcc@${{ matrix.cfg.version }}
+          fi
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Build
+        run: |
+          mkdir build
+          ls -l /Applications/Xcode*
+          ls -l /Applications/Xcode_11.4.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk
+          sudo find / -name cassert
+          cmake \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
+            -DCMAKE_C_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang || echo gcc)-${{ matrix.cfg.version }} \
+            -DCMAKE_CXX_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang++ || echo g++)-${{ matrix.cfg.version }} \
+            -DCMAKE_SYSROOT_COMPILE=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
+            -Ddze_optional_static_analyzer=OFF \
+            -Ddze_optional_sanitize_address=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
             -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
             -B build \
             -S .
