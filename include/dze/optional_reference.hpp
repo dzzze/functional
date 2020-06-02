@@ -4,7 +4,7 @@
 #include <type_traits>
 #include <utility>
 
-#include "type_traits.hpp"
+#include <dze/requires.hpp>
 
 namespace q::util {
 
@@ -38,13 +38,13 @@ public:
     constexpr optional_reference(std::nullopt_t) noexcept {}
 
     template <typename U = T,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T&, U&>)>
+        DZE_REQUIRES(std::is_constructible_v<T&, U&>)>
     constexpr optional_reference(U& u) noexcept
         : m_ptr{std::addressof(static_cast<T&>(u))} {}
 
     template <
         typename U,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> && std::is_constructible_v<T&, U&> &&
             std::is_convertible_v<U&, T&> && !details::converts_from_optional_reference<T, U>)>
     optional_reference(const optional_reference<U>& other) noexcept
@@ -53,7 +53,7 @@ public:
     }
 
     template <typename U,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> && std::is_constructible_v<T&, U&> &&
             !std::is_convertible_v<U&, T&> && !details::converts_from_optional_reference<T, U>)>
     explicit optional_reference(const optional_reference<U>& other) noexcept
@@ -71,7 +71,7 @@ public:
     }
 
     template <typename U = T,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T&, U&> && std::is_convertible_v<U&, T&>)>
+        DZE_REQUIRES(std::is_constructible_v<T&, U&> && std::is_convertible_v<U&, T&>)>
     constexpr optional_reference& operator=(U& u) noexcept
     {
         m_ptr = std::addressof(static_cast<T&>(u));
@@ -79,7 +79,7 @@ public:
     }
 
     template <typename U,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> && std::is_constructible_v<T&, U&> &&
             std::is_convertible_v<U&, T&> && !details::converts_from_optional_reference<T, U>)>
     constexpr optional_reference& operator=(const optional_reference<U>& other) noexcept
@@ -132,7 +132,7 @@ private:
 };
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator==(
     const optional_reference<T>& lhs, const optional_reference<U>& rhs)
 {
@@ -140,7 +140,7 @@ template <typename T, typename U,
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator!=(
     const optional_reference<T>& lhs, const optional_reference<U>& rhs)
 {
@@ -149,7 +149,7 @@ template <typename T, typename U,
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<(
     const optional_reference<T>& lhs, const optional_reference<U>& rhs)
 {
@@ -157,14 +157,14 @@ template <typename T, typename U,
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
 constexpr bool operator>(const optional_reference<T>& lhs, const optional_reference<U>& rhs)
 {
     return static_cast<bool>(lhs) && (!lhs || *lhs > *rhs);
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<=(
     const optional_reference<T>& lhs, const optional_reference<U>& rhs)
 {
@@ -172,7 +172,7 @@ template <typename T, typename U,
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>=(
     const optional_reference<T>& lhs, const optional_reference<U>& rhs)
 {
@@ -256,84 +256,84 @@ template <typename T>
 // Comparisons with value type.
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator==(const optional_reference<T>& lhs, const U& rhs)
 {
     return lhs && *lhs == rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator==(const U& lhs, const optional_reference<T>& rhs)
 {
     return rhs && lhs == *rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator!=(const optional_reference<T>& lhs, const U& rhs)
 {
     return !lhs || *lhs != rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator!=(const U& lhs, const optional_reference<T>& rhs)
 {
     return !rhs || lhs != *rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<(const optional_reference<T>& lhs, const U& rhs)
 {
     return !lhs || *lhs < rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<(const U& lhs, const optional_reference<T>& rhs)
 {
     return rhs && lhs < *rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>(const optional_reference<T>& lhs, const U& rhs)
 {
     return lhs && *lhs > rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>(const U& lhs, const optional_reference<T>& rhs)
 {
     return !rhs || lhs > *rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<=(const optional_reference<T>& lhs, const U& rhs)
 {
     return !lhs || *lhs <= rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<=(const U& lhs, const optional_reference<T>& rhs)
 {
     return rhs && lhs <= *rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>=(const optional_reference<T>& lhs, const U& rhs)
 {
     return lhs && *lhs >= rhs;
 }
 
 template <typename T, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>=(const U& lhs, const optional_reference<T>& rhs)
 {
     return !rhs || lhs >= *rhs;

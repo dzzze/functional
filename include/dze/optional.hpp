@@ -6,11 +6,13 @@
 #include <type_traits>
 #include <utility>
 
-#include "type_traits.hpp"
+#include <dze/type_traits.hpp>
 
 #include "details/enable_special_members.hpp"
 
 namespace q::util {
+
+using namespace dze;
 
 namespace details {
 
@@ -78,7 +80,7 @@ public:
     }
 
     template <typename dummy = Policy, typename... Args,
-        Q_UTIL_REQUIRES(has_disengaged_initializer_v<dummy>)>
+        DZE_REQUIRES(has_disengaged_initializer_v<dummy>)>
     constexpr void set(Args&&... args)
         noexcept(std::is_nothrow_constructible_v<stored_type, Args...>)
     {
@@ -86,7 +88,7 @@ public:
     }
 
     template <typename dummy = Policy,
-        Q_UTIL_REQUIRES(!has_disengaged_initializer_v<dummy>)>
+        DZE_REQUIRES(!has_disengaged_initializer_v<dummy>)>
     constexpr void set() noexcept
     {
         policy().set();
@@ -238,12 +240,12 @@ private:
             : Policy{engaged} {}
 
         template <typename Dummy = Policy,
-            Q_UTIL_REQUIRES(!has_disengaged_initializer_v<Dummy>)>
+            DZE_REQUIRES(!has_disengaged_initializer_v<Dummy>)>
         constexpr policy_payload_pack() noexcept
             : Policy{false} {}
 
         template <typename Dummy = Policy,
-            Q_UTIL_REQUIRES(has_disengaged_initializer_v<Dummy>)>
+            DZE_REQUIRES(has_disengaged_initializer_v<Dummy>)>
         constexpr policy_payload_pack() noexcept
             : Policy{false}
             , payload{std::in_place, static_cast<Policy&>(*this).disengaged_initializer()} {}
@@ -513,12 +515,12 @@ public:
 
     // Constructors for engaged optionals.
     template <typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, Args&&...>)>
     explicit constexpr optional_base(std::in_place_t, Args&&... args)
         : m_payload{std::in_place, std::forward<Args>(args)...} {}
 
     template <typename U, typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
     explicit constexpr optional_base(
         std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
         : m_payload{std::in_place, ilist, std::forward<Args>(args)...} {}
@@ -555,12 +557,12 @@ public:
 
     // Constructors for engaged optionals.
     template <typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, Args&&...>)>
     explicit constexpr optional_base(std::in_place_t, Args&&... args)
         : m_payload{std::in_place, std::forward<Args>(args)...} {}
 
     template <typename U, typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
     explicit constexpr optional_base(
         std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
         : m_payload{std::in_place, ilist, std::forward<Args>(args)...} {}
@@ -595,12 +597,12 @@ public:
 
     // Constructors for engaged optionals.
     template <typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, Args&&...>)>
     explicit constexpr optional_base(std::in_place_t, Args&&... args)
         : m_payload{std::in_place, std::forward<Args>(args)...} {}
 
     template <typename U, typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
     explicit constexpr optional_base(std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
         : m_payload{std::in_place, ilist, std::forward<Args>(args)...} {}
 
@@ -634,12 +636,12 @@ public:
 
     // Constructors for engaged optionals.
     template <typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, Args&&...>)>
     explicit constexpr optional_base(std::in_place_t, Args&&... args)
         : m_payload{std::in_place, std::forward<Args>(args)...} {}
 
     template <typename U, typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
     explicit constexpr optional_base(std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
         : m_payload{std::in_place, ilist, std::forward<Args>(args)...} {}
 
@@ -728,7 +730,7 @@ public:
 
     // Converting constructors for engaged optionals.
     template <typename U = T,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<optional<T, Policy>, std::decay_t<U>> &&
             !std::is_same_v<std::in_place_t, std::decay_t<U>> &&
             std::is_constructible_v<T, U&&> &&
@@ -737,7 +739,7 @@ public:
         : base{std::in_place, std::forward<U>(t)} {}
 
     template <typename U = T,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<optional<T, Policy>, std::decay_t<U>> &&
             !std::is_same_v<std::in_place_t, std::decay_t<U>> &&
             std::is_constructible_v<T, U&&> &&
@@ -746,7 +748,7 @@ public:
         : base{std::in_place, std::forward<U>(t)} {}
 
     template <typename U, typename Policy2,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, const U&> &&
             std::is_convertible_v<const U&, T> &&
@@ -758,7 +760,7 @@ public:
     }
 
     template <typename U, typename Policy2,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, const U&> &&
             !std::is_convertible_v<const U&, T> &&
@@ -770,7 +772,7 @@ public:
     }
 
     template <typename U, typename Policy2,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, U&&> &&
             std::is_convertible_v<U&&, T> &&
@@ -782,7 +784,7 @@ public:
     }
 
     template <typename U, typename Policy2,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, U&&> &&
             !std::is_convertible_v<U&&, T> &&
@@ -794,12 +796,12 @@ public:
     }
 
     template <typename... Args,
-             Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+             DZE_REQUIRES(std::is_constructible_v<T, Args&&...>)>
     explicit constexpr optional(std::in_place_t, Args&&... args)
         : base{std::in_place, std::forward<Args>(args)...} {}
 
     template <typename U, typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>&, Args&&...>)>
     explicit constexpr optional(
         std::in_place_t, std::initializer_list<U> ilist, Args&&... args)
         : base{std::in_place, ilist, std::forward<Args>(args)...} {}
@@ -811,7 +813,7 @@ public:
     }
 
     template <typename U = T,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<optional<T, Policy>, std::decay_t<U>> &&
             std::is_constructible_v<T, U> &&
             !(std::is_scalar_v<T> &&
@@ -830,7 +832,7 @@ public:
     template <
         typename U,
         typename Policy2,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, const U&> &&
             std::is_assignable_v<T&, const U&> &&
@@ -852,7 +854,7 @@ public:
     }
 
     template <typename U, typename Policy2,
-        Q_UTIL_REQUIRES(
+        DZE_REQUIRES(
             !std::is_same_v<T, U> &&
             std::is_constructible_v<T, U&&> &&
             std::is_assignable_v<T&, U&&> &&
@@ -874,7 +876,7 @@ public:
     }
 
     template <typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, Args&&...>)>
     T& emplace(Args&&... args)
     {
         this->destruct();
@@ -883,7 +885,7 @@ public:
     }
 
     template <typename U, typename... Args,
-        Q_UTIL_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>, Args&&...>)>
+        DZE_REQUIRES(std::is_constructible_v<T, std::initializer_list<U>, Args&&...>)>
     T& emplace(std::initializer_list<U> ilist, Args&&... args)
     {
         this->destruct();
@@ -982,7 +984,7 @@ public:
 };
 
 template <typename T, typename Policy1, typename U, typename Policy2,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator==(
     const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
@@ -990,7 +992,7 @@ template <typename T, typename Policy1, typename U, typename Policy2,
 }
 
 template <typename T, typename Policy1, typename U, typename Policy2,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator!=(
     const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
@@ -999,7 +1001,7 @@ template <typename T, typename Policy1, typename U, typename Policy2,
 }
 
 template <typename T, typename Policy1, typename U, typename Policy2,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<(
     const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
@@ -1007,7 +1009,7 @@ template <typename T, typename Policy1, typename U, typename Policy2,
 }
 
 template <typename T, typename Policy1, typename U, typename Policy2,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>(
     const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
@@ -1015,7 +1017,7 @@ template <typename T, typename Policy1, typename U, typename Policy2,
 }
 
 template <typename T, typename Policy1, typename U, typename Policy2,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<=(
     const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
@@ -1023,7 +1025,7 @@ template <typename T, typename Policy1, typename U, typename Policy2,
 }
 
 template <typename T, typename Policy1, typename U, typename Policy2,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>=(
     const optional<T, Policy1>& lhs, const optional<U, Policy2>& rhs)
 {
@@ -1112,98 +1114,98 @@ template <typename T, typename Policy>
 // Comparisons with value type.
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator==(const optional<T, Policy>& lhs, const U& rhs)
 {
     return lhs && *lhs == rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() == std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator==(const U& lhs, const optional<T, Policy>& rhs)
 {
     return rhs && lhs == *rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator!=(const optional<T, Policy>& lhs, const U& rhs)
 {
     return !lhs || *lhs != rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() != std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator!=(const U& lhs, const optional<T, Policy>& rhs)
 {
     return !rhs || lhs != *rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<(const optional<T, Policy>& lhs, const U& rhs)
 {
     return !lhs || *lhs < rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() < std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<(const U& lhs, const optional<T, Policy>& rhs)
 {
     return rhs && lhs < *rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>(const optional<T, Policy>& lhs, const U& rhs)
 {
     return lhs && *lhs > rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() > std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>(const U& lhs, const optional<T, Policy>& rhs)
 {
     return !rhs || lhs > *rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<=(const optional<T, Policy>& lhs, const U& rhs)
 {
     return !lhs || *lhs <= rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() <= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator<=(const U& lhs, const optional<T, Policy>& rhs)
 {
     return rhs && lhs <= *rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>=(const optional<T, Policy>& lhs, const U& rhs)
 {
     return lhs && *lhs >= rhs;
 }
 
 template <typename T, typename Policy, typename U,
-    Q_UTIL_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
+    DZE_REQUIRES(std::is_convertible_v<decltype(std::declval<T>() >= std::declval<U>()), bool>)>
 [[nodiscard]] constexpr bool operator>=(const U& lhs, const optional<T, Policy>& rhs)
 {
     return !rhs || lhs >= *rhs;
 }
 
 template <typename T, typename Policy,
-    Q_UTIL_REQUIRES(std::is_move_constructible_v<T> && std::is_swappable_v<T>)>
+    DZE_REQUIRES(std::is_move_constructible_v<T> && std::is_swappable_v<T>)>
 void swap(optional<T, Policy>& lhs, optional<T, Policy>& rhs) noexcept(noexcept(lhs.swap(rhs)))
 {
     lhs.swap(rhs);
 }
 
 template <typename T, typename Policy,
-    Q_UTIL_REQUIRES(!(std::is_move_constructible_v<T> && std::is_swappable_v<T>))>
+    DZE_REQUIRES(!(std::is_move_constructible_v<T> && std::is_swappable_v<T>))>
 void swap(optional<T, Policy>&, optional<T, Policy>&) = delete;
 
 template <typename T>
