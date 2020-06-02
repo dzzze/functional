@@ -57,12 +57,12 @@ template <
     bool CopyAssignable,
     bool MoveConstructible,
     bool MoveAssignable,
-    typename tag = void>
+    typename Tag = void>
 struct enable_special_members
-    : private enable_default_constructor<DefConstrutible, tag>
-    , private enable_destructor<Destructible, tag>
+    : private enable_default_constructor<DefConstrutible, Tag>
+    , private enable_destructor<Destructible, Tag>
     , private enable_copy_move<
-        CopyConstructible, CopyAssignable, MoveConstructible, MoveAssignable, tag> {};
+        CopyConstructible, CopyAssignable, MoveConstructible, MoveAssignable, Tag> {};
 
 template <typename T>
 using special_members_base = enable_special_members<
@@ -76,8 +76,8 @@ using special_members_base = enable_special_members<
 
 // Boilerplate follows.
 
-template <typename tag>
-struct enable_default_constructor<false, tag>
+template <typename Tag>
+struct enable_default_constructor<false, Tag>
 {
     constexpr enable_default_constructor() noexcept = delete;
     explicit constexpr enable_default_constructor(enable_default_constructor_tag) noexcept {}
@@ -88,14 +88,14 @@ struct enable_default_constructor<false, tag>
     enable_default_constructor& operator=(enable_default_constructor&&) noexcept = default;
 };
 
-template <typename tag>
-struct enable_destructor<false, tag>
+template <typename Tag>
+struct enable_destructor<false, Tag>
 {
     ~enable_destructor() noexcept = delete;
 };
 
-template <typename tag>
-struct enable_copy_move<false, false, false, false, tag>
+template <typename Tag>
+struct enable_copy_move<false, false, false, false, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = delete;
@@ -104,8 +104,8 @@ struct enable_copy_move<false, false, false, false, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = delete;
 };
 
-template <typename tag>
-struct enable_copy_move<false, false, false, true, tag>
+template <typename Tag>
+struct enable_copy_move<false, false, false, true, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = delete;
@@ -114,8 +114,8 @@ struct enable_copy_move<false, false, false, true, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = default;
 };
 
-template <typename tag>
-struct enable_copy_move<false, false, true, false, tag>
+template <typename Tag>
+struct enable_copy_move<false, false, true, false, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = delete;
@@ -124,8 +124,8 @@ struct enable_copy_move<false, false, true, false, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = delete;
 };
 
-template <typename tag>
-struct enable_copy_move<false, false, true, true, tag>
+template <typename Tag>
+struct enable_copy_move<false, false, true, true, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = delete;
@@ -134,8 +134,8 @@ struct enable_copy_move<false, false, true, true, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = default;
 };
 
-template <typename tag>
-struct enable_copy_move<false, true, false, false, tag>
+template <typename Tag>
+struct enable_copy_move<false, true, false, false, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = delete;
@@ -144,8 +144,8 @@ struct enable_copy_move<false, true, false, false, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = delete;
 };
 
-template <typename tag>
-struct enable_copy_move<false, true, false, true, tag>
+template <typename Tag>
+struct enable_copy_move<false, true, false, true, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = delete;
@@ -154,8 +154,8 @@ struct enable_copy_move<false, true, false, true, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = default;
 };
 
-template <typename tag>
-struct enable_copy_move<false, true, true, false, tag>
+template <typename Tag>
+struct enable_copy_move<false, true, true, false, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = delete;
@@ -164,8 +164,8 @@ struct enable_copy_move<false, true, true, false, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = delete;
 };
 
-template <typename tag>
-struct enable_copy_move<false, true, true, true, tag>
+template <typename Tag>
+struct enable_copy_move<false, true, true, true, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = delete;
@@ -174,8 +174,8 @@ struct enable_copy_move<false, true, true, true, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = default;
 };
 
-template <typename tag>
-struct enable_copy_move<true, false, false, false, tag>
+template <typename Tag>
+struct enable_copy_move<true, false, false, false, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = default;
@@ -184,8 +184,8 @@ struct enable_copy_move<true, false, false, false, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = delete;
 };
 
-template <typename tag>
-struct enable_copy_move<true, false, false, true, tag>
+template <typename Tag>
+struct enable_copy_move<true, false, false, true, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = default;
@@ -194,8 +194,8 @@ struct enable_copy_move<true, false, false, true, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = default;
 };
 
-template <typename tag>
-struct enable_copy_move<true, false, true, false, tag>
+template <typename Tag>
+struct enable_copy_move<true, false, true, false, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = default;
@@ -204,8 +204,8 @@ struct enable_copy_move<true, false, true, false, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = delete;
 };
 
-template <typename tag>
-struct enable_copy_move<true, false, true, true, tag>
+template <typename Tag>
+struct enable_copy_move<true, false, true, true, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = default;
@@ -214,8 +214,8 @@ struct enable_copy_move<true, false, true, true, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = default;
 };
 
-template <typename tag>
-struct enable_copy_move<true, true, false, false, tag>
+template <typename Tag>
+struct enable_copy_move<true, true, false, false, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = default;
@@ -224,8 +224,8 @@ struct enable_copy_move<true, true, false, false, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = delete;
 };
 
-template <typename tag>
-struct enable_copy_move<true, true, false, true, tag>
+template <typename Tag>
+struct enable_copy_move<true, true, false, true, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = default;
@@ -234,8 +234,8 @@ struct enable_copy_move<true, true, false, true, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = default;
 };
 
-template <typename tag>
-struct enable_copy_move<true, true, true, false, tag>
+template <typename Tag>
+struct enable_copy_move<true, true, true, false, Tag>
 {
     constexpr enable_copy_move() noexcept = default;
     constexpr enable_copy_move(const enable_copy_move&) noexcept = default;
