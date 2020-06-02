@@ -1,0 +1,59 @@
+name: Continuous Integration
+on:
+  repository_dispatch:
+    types: trigger_build
+  push:
+    branches:
+      - master
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - master
+
+jobs:
+  build:
+    name: ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }} ${{ matrix.cfg.version }} on ${{ matrix.cfg.os }}
+    runs-on: ${{ matrix.cfg.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg:
+          - { os: ubuntu-latest, compiler: Clang, version: 9,  config: Debug }
+          - { os: ubuntu-latest, compiler: Clang, version: 9,  config: Release }
+          - { os: ubuntu-latest, compiler: Clang, version: 10, config: Debug }
+          - { os: ubuntu-latest, compiler: Clang, version: 10, config: Release }
+          - { os: ubuntu-latest, compiler: GNU,   version: 9,  config: Debug }
+          - { os: ubuntu-latest, compiler: GNU,   version: 9,  config: Release }
+          - { os: ubuntu-latest, compiler: GNU,   version: 10, config: Debug }
+          - { os: ubuntu-latest, compiler: GNU,   version: 10, config: Release }
+            #- { os: windows-latest,  name: VS2017, cc: cl,    cxx: cl,      version: x, redefine: Build/Release/ReDefine.exe }
+            #- { os: macos-latest,  name: VS2017, cc: cl,    cxx: cl,      version: x, redefine: Build/Release/ReDefine.exe }
+    steps:
+      - name: Install packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy cmake ninja-build
+          if [ ${{matrix.cfg.compiler}} = Clang ]
+          then
+            sudo apt-get install -y clang-${{ matrix.cfg.version }}
+          elif [ ${{matrix.cfg.compiler}} = GNU ]
+          then
+            sudo apt-get install -y g++-${{ matrix.cfg.version }}
+          fi
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Build
+        run: |
+          mkdir build
+          cmake \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
+            -DCMAKE_C_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang || echo gcc)-${{ matrix.cfg.version }} \
+            -DCMAKE_CXX_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang++ || echo g++)-${{ matrix.cfg.version }} \
+            -Ddze_optional_sanitize_adress=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
+            -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
+            -B build \
+            -S .
+          ninja -C build
