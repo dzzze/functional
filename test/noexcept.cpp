@@ -5,12 +5,10 @@
 
 #include <catch2/catch.hpp>
 
-namespace qut = q::util::test;
-
 TEST_CASE("Noexcept", "[noexcept]")
 {
-    qut::optional<int> o1{4};
-    qut::optional<int> o2{42};
+    dze::optional<int> o1{4};
+    dze::optional<int> o2{42};
 
     SECTION("comparison with nullopt")
     {
@@ -51,8 +49,8 @@ TEST_CASE("Noexcept", "[noexcept]")
             throw_swappable(throw_swappable&&) {}
         };
 
-        qut::optional<nothrow_swappable> ont;
-        qut::optional<throw_swappable> ot;
+        dze::optional<nothrow_swappable> ont;
+        dze::optional<throw_swappable> ot;
 
         STATIC_REQUIRE(noexcept(ont.swap(ont)));
         STATIC_REQUIRE(!noexcept(ot.swap(ot)));
@@ -60,8 +58,8 @@ TEST_CASE("Noexcept", "[noexcept]")
 
     SECTION("constructors")
     {
-        STATIC_REQUIRE(noexcept(qut::optional<int>{}));
-        STATIC_REQUIRE(noexcept(qut::optional<int>{std::nullopt}));
+        STATIC_REQUIRE(noexcept(dze::optional<int>{}));
+        STATIC_REQUIRE(noexcept(dze::optional<int>{std::nullopt}));
 
         struct nothrow_move
         {
@@ -74,8 +72,8 @@ TEST_CASE("Noexcept", "[noexcept]")
             throw_move(throw_move&&) {};
         };
 
-        using nothrow_opt = qut::optional<nothrow_move>;
-        using throw_opt = qut::optional<throw_move>;
+        using nothrow_opt = dze::optional<nothrow_move>;
+        using throw_opt = dze::optional<throw_move>;
 
         STATIC_REQUIRE(std::is_nothrow_move_constructible<nothrow_opt>::value);
         STATIC_REQUIRE(!std::is_nothrow_move_constructible<throw_opt>::value);
@@ -103,8 +101,8 @@ TEST_CASE("Noexcept", "[noexcept]")
             throw_move_assign(throw_move_assign&&) {};
         };
 
-        using nothrow_opt = qut::optional<nothrow_move_assign>;
-        using throw_opt = qut::optional<throw_move_assign>;
+        using nothrow_opt = dze::optional<nothrow_move_assign>;
+        using throw_opt = dze::optional<throw_move_assign>;
 
         STATIC_REQUIRE(noexcept(std::declval<nothrow_opt>() = std::declval<nothrow_opt>()));
         STATIC_REQUIRE(!noexcept(std::declval<throw_opt>() = std::declval<throw_opt>()));

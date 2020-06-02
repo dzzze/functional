@@ -6,7 +6,7 @@
 
 #include <dze/requires.hpp>
 
-namespace q::util {
+namespace dze {
 
 template <typename T>
 class optional_reference;
@@ -15,14 +15,14 @@ namespace details {
 
 template <typename T, typename U>
 constexpr bool converts_from_optional_reference =
-    std::is_constructible_v<T&, const util::optional_reference<U>&> ||
-    std::is_constructible_v<T&, util::optional_reference<U>&> ||
-    std::is_constructible_v<T&, const util::optional_reference<U>&&> ||
-    std::is_constructible_v<T&, util::optional_reference<U>&&> ||
-    std::is_convertible_v<const util::optional_reference<U>&, T&> ||
-    std::is_convertible_v<util::optional_reference<U>&, T&> ||
-    std::is_convertible_v<const util::optional_reference<U>&&, T&> ||
-    std::is_convertible_v<util::optional_reference<U>&&, T&>;
+    std::is_constructible_v<T&, const optional_reference<U>&> ||
+    std::is_constructible_v<T&, optional_reference<U>&> ||
+    std::is_constructible_v<T&, const optional_reference<U>&&> ||
+    std::is_constructible_v<T&, optional_reference<U>&&> ||
+    std::is_convertible_v<const optional_reference<U>&, T&> ||
+    std::is_convertible_v<optional_reference<U>&, T&> ||
+    std::is_convertible_v<const optional_reference<U>&&, T&> ||
+    std::is_convertible_v<optional_reference<U>&&, T&>;
 
 } // namespace details
 
@@ -345,4 +345,4 @@ constexpr void swap(optional_reference<T>& lhs, optional_reference<T>& rhs) noex
     lhs.swap(rhs);
 }
 
-} // namespace q::util
+} // namespace dze

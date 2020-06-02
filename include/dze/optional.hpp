@@ -10,9 +10,7 @@
 
 #include "details/enable_special_members.hpp"
 
-namespace q::util {
-
-using namespace dze;
+namespace dze {
 
 namespace details {
 
@@ -23,7 +21,7 @@ template <typename Policy>
 constexpr bool has_disengaged_initializer_v = is_detected_v<disengaged_initializer_t, Policy>;
 
 // This class template manages construction/destruction of
-// the contained value for a util::optional.
+// the contained value for a dze::optional.
 template <typename T, typename Policy>
 class optional_payload_base
 {
@@ -670,21 +668,21 @@ namespace details {
 
 template <typename T, typename U, typename Policy>
 constexpr bool converts_from_optional =
-    std::is_constructible_v<T, const util::optional<U, Policy>&> ||
-    std::is_constructible_v<T, util::optional<U, Policy>&> ||
-    std::is_constructible_v<T, const util::optional<U, Policy>&&> ||
-    std::is_constructible_v<T, util::optional<U, Policy>&&> ||
-    std::is_convertible_v<const util::optional<U, Policy>&, T> ||
-    std::is_convertible_v<util::optional<U, Policy>&, T> ||
-    std::is_convertible_v<const util::optional<U, Policy>&&, T> ||
-    std::is_convertible_v<util::optional<U, Policy>&&, T>;
+    std::is_constructible_v<T, const optional<U, Policy>&> ||
+    std::is_constructible_v<T, optional<U, Policy>&> ||
+    std::is_constructible_v<T, const optional<U, Policy>&&> ||
+    std::is_constructible_v<T, optional<U, Policy>&&> ||
+    std::is_convertible_v<const optional<U, Policy>&, T> ||
+    std::is_convertible_v<optional<U, Policy>&, T> ||
+    std::is_convertible_v<const optional<U, Policy>&&, T> ||
+    std::is_convertible_v<optional<U, Policy>&&, T>;
 
 template <typename T, typename U, typename Policy>
 constexpr bool assigns_from_optional =
-    std::is_assignable_v<T&, const util::optional<U, Policy>&> ||
-    std::is_assignable_v<T&, util::optional<U, Policy>&> ||
-    std::is_assignable_v<T&, const util::optional<U, Policy>&&> ||
-    std::is_assignable_v<T&, util::optional<U, Policy>&&>;
+    std::is_assignable_v<T&, const optional<U, Policy>&> ||
+    std::is_assignable_v<T&, optional<U, Policy>&> ||
+    std::is_assignable_v<T&, const optional<U, Policy>&&> ||
+    std::is_assignable_v<T&, optional<U, Policy>&&>;
 
 } // namespace details
 
@@ -1246,4 +1244,4 @@ template <typename T, typename Policy, typename U, typename... Args>
     return optional<T, Policy>{std::in_place, ilist, std::forward<Args>(args)...};
 }
 
-} // namespace q::util
+} // namespace dze

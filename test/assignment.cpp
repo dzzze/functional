@@ -8,10 +8,8 @@
 
 #include <catch2/catch.hpp>
 
-namespace qut = q::util::test;
-
 TEMPLATE_TEST_CASE(
-    "Assignment", "[assignment]", qut::optional<int>, qut::negative_sentinel<int>)
+    "Assignment", "[assignment]", dze::optional<int>, dze::test::negative_sentinel<int>)
 {
     TestType o1 = 42;
 
@@ -69,7 +67,7 @@ TEMPLATE_TEST_CASE(
 
     SECTION("Assign another optional of different type")
     {
-        qut::optional<short> o2 = 84;
+        dze::optional<short> o2 = 84;
         o1 = o2;
         REQUIRE(o1.has_value());
         CHECK(*o1 == 84);
@@ -79,7 +77,7 @@ TEMPLATE_TEST_CASE(
 
     SECTION("Assign empty optional of different type")
     {
-        qut::optional<short> o2;
+        dze::optional<short> o2;
         o1 = o2;
         CHECK(!o1.has_value());
         CHECK(!o2.has_value());
@@ -87,7 +85,7 @@ TEMPLATE_TEST_CASE(
 }
 
 TEMPLATE_TEST_CASE(
-    "Assignment", "[assignment]", qut::optional<std::string>, qut::empty_sentinel<std::string>)
+    "Assignment", "[assignment]", dze::optional<std::string>, dze::test::empty_sentinel<std::string>)
 {
     TestType o1 = std::string{"42"};
 
@@ -135,7 +133,7 @@ TEMPLATE_TEST_CASE(
         o1 = std::move(o2);
         REQUIRE(o1.has_value());
         CHECK(*o1 == "84");
-        if constexpr (std::is_same_v<TestType, qut::optional<std::string>>)
+        if constexpr (std::is_same_v<TestType, dze::optional<std::string>>)
         {
             REQUIRE(o2.has_value());
             CHECK(o2->empty());
@@ -168,7 +166,7 @@ TEMPLATE_TEST_CASE(
 
     SECTION("Assign another optional of different type")
     {
-        qut::optional<const char*> o2 = "84";
+        dze::optional<const char*> o2 = "84";
         o1 = o2;
         REQUIRE(o1.has_value());
         CHECK(*o1 == "84");
@@ -178,7 +176,7 @@ TEMPLATE_TEST_CASE(
 
     SECTION("Assign empty optional of different type")
     {
-        qut::optional<const char*> o2;
+        dze::optional<const char*> o2;
         o1 = o2;
         CHECK(!o1.has_value());
         CHECK(!o2.has_value());

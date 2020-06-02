@@ -2,10 +2,7 @@
 
 #include <dze/optional.hpp>
 
-namespace q::util::test {
-
-// TODO
-using namespace q::util;
+namespace dze::test {
 
 template <typename T>
 class negative_sentinel_value
@@ -27,7 +24,7 @@ public:
 };
 
 template <typename T>
-using negative_sentinel = ::q::util::optional<T, negative_sentinel_value<T>>;
+using negative_sentinel = ::dze::optional<T, negative_sentinel_value<T>>;
 
 template <typename T>
 class empty_sentinel_value
@@ -51,6 +48,6 @@ public:
 };
 
 template <typename T>
-using empty_sentinel = ::q::util::optional<T, empty_sentinel_value<T>>;
+using empty_sentinel = ::dze::optional<T, empty_sentinel_value<T>>;
 
-} // namespace q::util::test
+} // namespace dze::test

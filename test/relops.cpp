@@ -5,10 +5,8 @@
 
 #include <catch2/catch.hpp>
 
-namespace qut = q::util::test;
-
 TEMPLATE_TEST_CASE(
-    "Relational ops", "[relops]", qut::optional<int>, qut::negative_sentinel<int>)
+    "Relational ops", "[relops]", dze::optional<int>, dze::test::negative_sentinel<int>)
 {
     TestType o1{4};
     TestType o2{42};
@@ -94,7 +92,10 @@ TEMPLATE_TEST_CASE(
 }
 
 TEMPLATE_TEST_CASE(
-    "Relational ops", "[relops]", qut::optional<std::string>, qut::empty_sentinel<std::string>)
+    "Relational ops",
+    "[relops]",
+    dze::optional<std::string>,
+    dze::test::empty_sentinel<std::string>)
 {
     TestType o1{"hello"};
     TestType o2{"xyz"};

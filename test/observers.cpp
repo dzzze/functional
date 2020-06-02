@@ -6,9 +6,8 @@
 
 #include <catch2/catch.hpp>
 
-namespace qut = q::util::test;
-
-TEMPLATE_TEST_CASE("Observers", "[observers]", qut::optional<int>, qut::negative_sentinel<int>)
+TEMPLATE_TEST_CASE(
+    "Observers", "[observers]", dze::optional<int>, dze::test::negative_sentinel<int>)
 {
     SECTION("Return types")
     {
@@ -36,8 +35,8 @@ TEMPLATE_TEST_CASE("Observers", "[observers]", qut::optional<int>, qut::negative
 TEMPLATE_TEST_CASE(
     "Observers",
     "[observers]",
-    qut::optional<std::vector<int>>,
-    qut::empty_sentinel<std::vector<int>>)
+    dze::optional<std::vector<int>>,
+    dze::test::empty_sentinel<std::vector<int>>)
 {
     SECTION("Return types")
     {
@@ -66,7 +65,7 @@ TEST_CASE("Observers", "[observers]")
             move_detector(move_detector&& rhs) noexcept { rhs.been_moved = true; }
         };
 
-        qut::optional<move_detector> o4{std::in_place};
+        dze::optional<move_detector> o4{std::in_place};
         move_detector o5 = std::move(o4).value();
         REQUIRE(o4->been_moved);
         REQUIRE(!o5.been_moved);

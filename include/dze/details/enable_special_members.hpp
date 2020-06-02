@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace q::util::details {
+namespace dze::details {
 
 struct enable_default_constructor_tag
 {
@@ -238,4 +238,4 @@ struct enable_copy_move<true, true, true, false, tag>
     enable_copy_move& operator=(enable_copy_move&&) noexcept = delete;
 };
 
-} // namespace q::util::details
+} // namespace dze::details

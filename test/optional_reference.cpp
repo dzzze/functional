@@ -45,7 +45,7 @@ TEST_CASE("Constructors", "[constructors]")
 {
     SECTION("empty construct")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         constexpr test_t o1;
         constexpr test_t o2{};
@@ -64,7 +64,7 @@ TEST_CASE("Constructors", "[constructors]")
 
     SECTION("value construct")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         constexpr test_t o1 = i;
         constexpr test_t o2{i};
@@ -79,7 +79,7 @@ TEST_CASE("Constructors", "[constructors]")
 
     SECTION("construct from another")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         constexpr test_t o1 = i;
         constexpr test_t o2 = o1;
@@ -96,9 +96,9 @@ TEST_CASE("Constructors", "[constructors]")
 
     SECTION("implicit construct from another optional type")
     {
-        using test_t = q::util::optional_reference<const base>;
+        using test_t = dze::optional_reference<const base>;
 
-        q::util::optional_reference<const derived> o1 = d;
+        dze::optional_reference<const derived> o1 = d;
         test_t o2 = o1;
         test_t o3{o1};
         test_t o4(o1);
@@ -113,9 +113,9 @@ TEST_CASE("Constructors", "[constructors]")
 
     SECTION("explicit construct from another optional type")
     {
-        using test_t = q::util::optional_reference<const derived>;
+        using test_t = dze::optional_reference<const derived>;
 
-        q::util::optional_reference<const base> o1 = b;
+        dze::optional_reference<const base> o1 = b;
         test_t o2{o1};
         test_t o3(o1);
 
@@ -129,7 +129,7 @@ TEST_CASE("Assignment", "[assignment]")
 {
     SECTION("Assign value")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         test_t o1 = i;
         int j = 84;
@@ -141,7 +141,7 @@ TEST_CASE("Assignment", "[assignment]")
 
     SECTION("Assign value of different type")
     {
-        using test_t = q::util::optional_reference<const base>;
+        using test_t = dze::optional_reference<const base>;
 
         base b{42};
         test_t o1 = b;
@@ -154,7 +154,7 @@ TEST_CASE("Assignment", "[assignment]")
 
     SECTION("Self assign")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         test_t o1 = i;
 
@@ -172,7 +172,7 @@ TEST_CASE("Assignment", "[assignment]")
 
     SECTION("Assign another optional")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         int j = 84;
         test_t o1 = i;
@@ -187,7 +187,7 @@ TEST_CASE("Assignment", "[assignment]")
 
     SECTION("Assign empty optional")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         test_t o1 = i;
         test_t o2;
@@ -199,7 +199,7 @@ TEST_CASE("Assignment", "[assignment]")
 
     SECTION("Assign nullopt")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         test_t o1 = i;
 
@@ -209,12 +209,12 @@ TEST_CASE("Assignment", "[assignment]")
 
     SECTION("Assign another optional of different type")
     {
-        using test_t = q::util::optional_reference<const base>;
+        using test_t = dze::optional_reference<const base>;
 
         base b{42};
         test_t o1 = b;
         derived d{84};
-        q::util::optional_reference<const derived> o2 = d;
+        dze::optional_reference<const derived> o2 = d;
 
         o1 = o2;
         REQUIRE(o1.has_value());
@@ -225,12 +225,12 @@ TEST_CASE("Assignment", "[assignment]")
 
     SECTION("Assign empty optional of different type")
     {
-        using test_t = q::util::optional_reference<const base>;
+        using test_t = dze::optional_reference<const base>;
 
         base b{42};
         test_t o1 = b;
 
-        q::util::optional_reference<const derived> o2;
+        dze::optional_reference<const derived> o2;
         o1 = o2;
         CHECK(!o1.has_value());
         CHECK(!o2.has_value());
@@ -241,7 +241,7 @@ TEST_CASE("Emplace", "[emplace]")
 {
     SECTION("Emplace value")
     {
-        using test_t = q::util::optional_reference<const int>;
+        using test_t = dze::optional_reference<const int>;
 
         test_t o1 = i;
         int j = 84;
@@ -253,7 +253,7 @@ TEST_CASE("Emplace", "[emplace]")
 
     SECTION("Emplace value of different type")
     {
-        using test_t = q::util::optional_reference<const base>;
+        using test_t = dze::optional_reference<const base>;
 
         base b{42};
         test_t o1 = b;

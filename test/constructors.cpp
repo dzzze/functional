@@ -5,10 +5,8 @@
 
 #include <catch2/catch.hpp>
 
-namespace qut = q::util::test;
-
 TEMPLATE_TEST_CASE(
-    "Constructors", "[constructors]", qut::optional<int>, qut::negative_sentinel<int>)
+    "Constructors", "[constructors]", dze::optional<int>, dze::test::negative_sentinel<int>)
 {
     SECTION("empty construct")
     {
@@ -67,7 +65,7 @@ TEMPLATE_TEST_CASE(
 
     SECTION("construct from another optional type")
     {
-        qut::optional<short> o1 = 42;
+        dze::optional<short> o1 = 42;
         TestType o2 = o1;
         TestType o3{o1};
         TestType o4(o1);
@@ -91,8 +89,8 @@ struct foo
 TEMPLATE_TEST_CASE(
     "Constructors",
     "[constructors]",
-    qut::optional<std::vector<foo>>,
-    qut::empty_sentinel<std::vector<foo>>)
+    dze::optional<std::vector<foo>>,
+    dze::test::empty_sentinel<std::vector<foo>>)
 {
     std::vector<foo> v;
     v.emplace_back();
@@ -104,7 +102,7 @@ TEMPLATE_TEST_CASE(
     TestType ov2 = std::move(ov1);
     REQUIRE(ov2.has_value());
     REQUIRE(ov2->size() == 1);
-    if constexpr (std::is_same_v<TestType, qut::optional<std::vector<foo>>>)
+    if constexpr (std::is_same_v<TestType, dze::optional<std::vector<foo>>>)
     {
         REQUIRE(ov1.has_value());
         CHECK(ov1->empty());
