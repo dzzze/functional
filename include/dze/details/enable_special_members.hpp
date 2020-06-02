@@ -34,7 +34,12 @@ template <typename T>
 using destructible_base = enable_destructor<std::is_destructible_v<T>, T>;
 
 // A mixin helper to conditionally enable or disable the destructor.
-template <bool copy, bool copy_assn, bool move, bool move_assn, typename = void>
+template <
+    bool CopyConstructible,
+    bool CopyAssignable,
+    bool MoveConstructible,
+    bool MoveAssignable,
+    typename = void>
 struct enable_copy_move {};
 
 template <typename T>
@@ -46,17 +51,18 @@ using copy_move_base = enable_copy_move<
     T>;
 
 template <
-    bool def_con,
-    bool dest,
-    bool copy,
-    bool copy_assn,
-    bool move,
-    bool move_assn,
+    bool DefConstrutible,
+    bool Destructible,
+    bool CopyConstructible,
+    bool CopyAssignable,
+    bool MoveConstructible,
+    bool MoveAssignable,
     typename tag = void>
 struct enable_special_members
-    : private enable_default_constructor<def_con, tag>
-    , private enable_destructor<dest, tag>
-    , private enable_copy_move<copy, copy_assn, move, move_assn, tag> {};
+    : private enable_default_constructor<DefConstrutible, tag>
+    , private enable_destructor<Destructible, tag>
+    , private enable_copy_move<
+        CopyConstructible, CopyAssignable, MoveConstructible, MoveAssignable, tag> {};
 
 template <typename T>
 using special_members_base = enable_special_members<
