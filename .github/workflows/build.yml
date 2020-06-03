@@ -94,26 +94,26 @@ jobs:
             -GNinja \
             -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
             -DCMAKE_C_COMPILER=$( \
-              if [ ${{ matrix.cfg.compiler }} = AppleClang ] \
-              then \
-                echo clang \
-              elif [ ${{ matrix.cfg.compiler }} = Clang ] \
-              then \
-                echo $(brew --prefix llvm@${{ matrix.cfg.version }})/bin/clang \
-              elif [ ${{ matrix.cfg.compiler }} = GNU ] \
-              then \
-                echo gcc-${{ matrix.cfg.version }} \
+              if [ ${{ matrix.cfg.compiler }} = AppleClang ]
+              then
+                echo clang
+              elif [ ${{ matrix.cfg.compiler }} = Clang ]
+              then
+                echo $(brew --prefix llvm@${{ matrix.cfg.version }})/bin/clang
+              elif [ ${{ matrix.cfg.compiler }} = GNU ]
+              then
+                echo gcc-${{ matrix.cfg.version }}
               fi) \
             -DCMAKE_CXX_COMPILER=$( \
-              if [ ${{ matrix.cfg.compiler }} = AppleClang ] \
-              then \
-                echo clang++ \
-              elif [ ${{ matrix.cfg.compiler }} = Clang ] \
-              then \
-                echo $(brew --prefix llvm@${{ matrix.cfg.version }})/bin/clang++ \
-              elif [ ${{ matrix.cfg.compiler }} = GNU ] \
-              then \
-                echo g++-${{ matrix.cfg.version }} \
+              if [ ${{ matrix.cfg.compiler }} = AppleClang ]
+              then
+                echo clang++
+              elif [ ${{ matrix.cfg.compiler }} = Clang ]
+              then
+                echo $(brew --prefix llvm@${{ matrix.cfg.version }})/bin/clang++
+              elif [ ${{ matrix.cfg.compiler }} = GNU ]
+              then
+                echo g++-${{ matrix.cfg.version }}
               fi) \
             -Ddze_optional_sanitize_address=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
             -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
