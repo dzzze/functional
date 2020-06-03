@@ -138,29 +138,47 @@ jobs:
           - { compiler: VS2019, config: Release }
 
     steps:
-      - name: Install ninja
-        uses: ashutoshvarma/setup-ninja@v1
-
-      - name: Setup system
-        shell: bash
-        run: |
-          curl -LSso ninja.zip https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip
-          unzip ninja.zip
-          ninja --version
+      - name: Enable Developer Command Prompt
+        uses: ilammy/msvc-dev-cmd@v1.2.0
 
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 1
 
+      # This action downloads ninja to the working directory. Checkout step erases the
+      # directory. So this step has to follow checkout.
+      - name: Install ninja
+        uses: ashutoshvarma/setup-ninja@v1
+
+          #- name: Setup system
+          #  shell: bash
+          #  run: |
+          #    curl -LSso ninja.zip https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip
+          #    unzip ninja.zip
+          #    echo "::set-env name=PATH::$(pwd):$PATH"
+
+          #- name: Path in bash
+          #  shell: bash
+          #  run: |
+          #    echo $PATH
+          #    ninja --version || echo lol
+
+          #- name: Path in ps
+          #  run: |
+          #    echo $PATH
+          #    ninja --version || echo lol
+
       - name: Build
         shell: bash
         run: |
-          ninja-1.10.0 --version || ninja --version || echo "LOL"
           mkdir build
           cmake \
             -GNinja \
             -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
+            -DCMAKE_C_COMPILER=cl \
+            -DCMAKE_CXX_COMPILER=cl \
+            -Ddze_optional_static_analyzer=OFF \
             -B build \
             -S .
-          ninja -C build
+          ninja -v -C build
