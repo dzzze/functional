@@ -31,7 +31,7 @@ TEMPLATE_TEST_CASE(
     {
 #ifdef __clang__
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wself-assign-overloaded"
+#pragma clang diagnostic ignored "-Wself-assign"
 #endif
         o1 = o1;
 #ifdef __clang__
@@ -107,7 +107,7 @@ TEMPLATE_TEST_CASE(
     {
 #ifdef __clang__
 #pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wself-assign-overloaded"
+#pragma clang diagnostic ignored "-Wself-assign"
 #endif
         o1 = o1;
 #ifdef __clang__
