@@ -54,7 +54,7 @@ jobs:
             -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
             -B build \
             -S .
-          ninja -C build
+          ninja -v -C build
 
   macos_build:
     name: macOS ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }} ${{ matrix.cfg.version }}
@@ -63,24 +63,22 @@ jobs:
       fail-fast: false
       matrix:
         cfg:
-          #- { os: macos-latest, compiler: AppleClang, version: 9,  config: Release }
-          - { compiler: Clang, version: 9,  config: Debug }
-          - { compiler: Clang, version: 9,  config: Release }
-          - { compiler: Clang, version: 10,  config: Debug }
-          - { compiler: Clang, version: 10,  config: Release }
-          - { compiler: GNU,   version: 9,  config: Debug }
-          - { compiler: GNU,   version: 9,  config: Release }
+          - { compiler: AppleClang, version: x,  config: Debug }
+          - { compiler: AppleClang, version: x,  config: Release }
+          - { compiler: Clang,      version: 9,  config: Debug }
+          - { compiler: Clang,      version: 9,  config: Release }
+          - { compiler: Clang,      version: 10, config: Debug }
+          - { compiler: Clang,      version: 10, config: Release }
+          - { compiler: GNU,        version: 9,  config: Debug }
+          - { compiler: GNU,        version: 9,  config: Release }
     steps:
       - name: Install packages
         run: |
-          brew install llvm cmake ninja fd
+          brew install llvm cmake ninja
           sudo ln -s "$(brew --prefix llvm)/bin/clang-tidy" /usr/local/bin/clang-tidy
           if [ ${{matrix.cfg.compiler}} = Clang ]
           then
             brew install llvm@${{ matrix.cfg.version }}
-            export LIBCLANG_SYSTEM_INCLUDE_DIR="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include"
-            sudo ln -s "$(brew --prefix llvm)/bin/clang" /usr/local/bin/clang-${{ matrix.cfg.version }}
-            sudo ln -s "$(brew --prefix llvm)/bin/clang++" /usr/local/bin/clang++-${{ matrix.cfg.version }}
           elif [ ${{matrix.cfg.compiler}} = GNU ]
           then
             brew install gcc@${{ matrix.cfg.version }}
@@ -92,18 +90,33 @@ jobs:
       - name: Build
         run: |
           mkdir build
-          ls -l /Applications/Xcode*
-          ls -l /Applications/Xcode_11.4.1.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.15.sdk
-          fd cassert /
           cmake \
             -GNinja \
             -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
-            -DCMAKE_C_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang || echo gcc)-${{ matrix.cfg.version }} \
-            -DCMAKE_CXX_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang++ || echo g++)-${{ matrix.cfg.version }} \
-            -DCMAKE_SYSROOT_COMPILE=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk \
-            -Ddze_optional_static_analyzer=OFF \
+            -DCMAKE_C_COMPILER=$( \
+              if [ ${{ matrix.cfg.compiler }} = AppleClang ] \
+              then \
+                echo clang \
+              elif [ ${{ matrix.cfg.compiler }} = Clang ] \
+              then \
+                echo $(brew --prefix llvm@${{ matrix.cfg.version }})/bin/clang \
+              elif [ ${{ matrix.cfg.compiler }} = GNU ] \
+              then \
+                echo gcc-${{ matrix.cfg.version }} \
+              fi) \
+            -DCMAKE_CXX_COMPILER=$( \
+              if [ ${{ matrix.cfg.compiler }} = AppleClang ] \
+              then \
+                echo clang++ \
+              elif [ ${{ matrix.cfg.compiler }} = Clang ] \
+              then \
+                echo $(brew --prefix llvm@${{ matrix.cfg.version }})/bin/clang++ \
+              elif [ ${{ matrix.cfg.compiler }} = GNU ] \
+              then \
+                echo g++-${{ matrix.cfg.version }} \
+              fi) \
             -Ddze_optional_sanitize_address=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
             -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
             -B build \
             -S .
-          ninja -C build
+          ninja -v -C build
