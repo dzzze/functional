@@ -24,13 +24,12 @@ jobs:
           - { compiler: GNU,   version: 9,  config: Release }
           - { compiler: GNU,   version: 10, config: Debug }
           - { compiler: GNU,   version: 10, config: Release }
-            #- { os: windows-latest,  name: VS2017, cc: cl,    cxx: cl,      version: x, redefine: Build/Release/ReDefine.exe }
-            #- { os: macos-latest,  name: VS2017, cc: cl,    cxx: cl,      version: x, redefine: Build/Release/ReDefine.exe }
+
     steps:
-      - name: Install packages
+      - name: Setup system
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-tidy cmake ninja-build
+          sudo apt-get install -y clang-tidy cmake lld-9 ninja-build
           if [ ${{matrix.cfg.compiler}} = Clang ]
           then
             sudo apt-get install -y clang-${{ matrix.cfg.version }}
@@ -38,10 +37,13 @@ jobs:
           then
             sudo apt-get install -y g++-${{ matrix.cfg.version }}
           fi
+          sudo ln -s /usr/bin/ld.lld-9 /usr/bin/ld.lld
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 1
+
       - name: Build
         run: |
           mkdir build
@@ -52,6 +54,7 @@ jobs:
             -DCMAKE_CXX_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang++ || echo g++)-${{ matrix.cfg.version }} \
             -Ddze_optional_sanitize_address=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
             -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
+            -Ddze_optional_use_lld=ON \
             -B build \
             -S .
           ninja -v -C build
@@ -71,11 +74,11 @@ jobs:
           - { compiler: Clang,      version: 10, config: Release }
           - { compiler: GNU,        version: 9,  config: Debug }
           - { compiler: GNU,        version: 9,  config: Release }
+
     steps:
-      - name: Install packages
+      - name: Setup system
         run: |
           brew install llvm cmake ninja
-          sudo ln -s "$(brew --prefix llvm)/bin/clang-tidy" /usr/local/bin/clang-tidy
           if [ ${{matrix.cfg.compiler}} = Clang ]
           then
             brew install llvm@${{ matrix.cfg.version }}
@@ -83,10 +86,13 @@ jobs:
           then
             brew install gcc@${{ matrix.cfg.version }}
           fi
+          sudo ln -s "$(brew --prefix llvm)/bin/clang-tidy" /usr/local/bin/clang-tidy
+
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 1
+
       - name: Build
         run: |
           mkdir build
@@ -120,3 +126,41 @@ jobs:
             -B build \
             -S .
           ninja -v -C build
+
+  windows_build:
+    name: Windows ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }}
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        cfg:
+          - { compiler: VS2019, config: Debug }
+          - { compiler: VS2019, config: Release }
+
+    steps:
+      - name: Install ninja
+        uses: ashutoshvarma/setup-ninja@v1
+
+      - name: Setup system
+        shell: bash
+        run: |
+          curl -LSso ninja.zip https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip
+          unzip ninja.zip
+          ninja --version
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+
+      - name: Build
+        shell: bash
+        run: |
+          ninja-1.10.0 --version || ninja --version || echo "LOL"
+          mkdir build
+          cmake \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
+            -B build \
+            -S .
+          ninja -C build

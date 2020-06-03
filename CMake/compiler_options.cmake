@@ -2,6 +2,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Let's not open this can of worms.
+if (NOT ${CMAKE_C_COMPILER_ID} STREQUAL ${CMAKE_CXX_COMPILER_ID})
+    message(FATAL_ERROR "Different compilers for C and C++ is not supported.")
+endif ()
+
 if (${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang" OR
     ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR
     ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
