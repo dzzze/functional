@@ -2,7 +2,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+if (${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang" OR
+    ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" OR
+    ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
+
     add_compile_options(-Wall -Wextra -Wmissing-declarations -Wswitch-enum -Werror -pedantic-errors)
     add_compile_options($<$<CXX_COMPILER_ID:Clang>:-Wdeprecated>)
     add_compile_options($<$<CXX_COMPILER_ID:GNU>:-Wshadow=compatible-local>)
