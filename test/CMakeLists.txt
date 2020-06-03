@@ -35,6 +35,6 @@ foreach (test ${tests})
     target_link_libraries(${target_name} Catch2::Main dze::optional)
     add_custom_test(
         NAME ${target_name}
-        COMMAND ${target_name}
+        COMMAND $<TARGET_FILE:${target_name}>
         DEPENDS ${target_name})
 endforeach ()

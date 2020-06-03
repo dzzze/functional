@@ -930,30 +930,34 @@ public:
 
     [[nodiscard]] constexpr T& value() &
     {
-        return this->is_engaged()
-            ? this->get()
-            : (throw std::bad_optional_access{}, this->get());
+        if (!this->is_engaged())
+            throw std::bad_optional_access{};
+
+        return this->get();
     }
 
     [[nodiscard]] constexpr const T& value() const&
     {
-        return this->is_engaged()
-            ? this->get()
-            : (throw std::bad_optional_access{}, this->get());
+        if (!this->is_engaged())
+            throw std::bad_optional_access{};
+
+        return this->get();
     }
 
     [[nodiscard]] constexpr T&& value() &&
     {
-        return this->is_engaged()
-            ? std::move(this->get())
-            : (throw std::bad_optional_access{}, std::move(this->get()));
+        if (!this->is_engaged())
+            throw std::bad_optional_access{};
+
+        return std::move(this->get());
     }
 
     [[nodiscard]] constexpr const T&& value() const&&
     {
-        return this->is_engaged()
-            ? std::move(this->get())
-            : (throw std::bad_optional_access{}, std::move(this->get()));
+        if (!this->is_engaged())
+            throw std::bad_optional_access{};
+
+        return std::move(this->get());
     }
 
     template <typename U>

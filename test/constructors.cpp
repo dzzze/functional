@@ -65,7 +65,7 @@ TEMPLATE_TEST_CASE(
 
     SECTION("construct from another optional type")
     {
-        dze::optional<short> o1 = 42;
+        dze::optional<short> o1 = short{42};
         TestType o2 = o1;
         TestType o3{o1};
         TestType o4(o1);

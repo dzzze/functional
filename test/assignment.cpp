@@ -67,7 +67,7 @@ TEMPLATE_TEST_CASE(
 
     SECTION("Assign another optional of different type")
     {
-        dze::optional<short> o2 = 84;
+        dze::optional<short> o2 = short{84};
         o1 = o2;
         REQUIRE(o1.has_value());
         CHECK(*o1 == 84);

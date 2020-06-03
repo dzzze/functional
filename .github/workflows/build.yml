@@ -12,12 +12,12 @@ on:
 
 jobs:
   linux_build:
-    name: Linux ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }} ${{ matrix.cfg.version }}
+    name: Linux ${{ matrix.config }} build with ${{ matrix.compiler }} ${{ matrix.version }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        cfg:
+        include:
           - { compiler: Clang, version: 9,  config: Debug }
           - { compiler: Clang, version: 9,  config: Release }
           - { compiler: GNU,   version: 9,  config: Debug }
@@ -30,12 +30,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-tidy cmake lld-9 ninja-build
-          if [ ${{matrix.cfg.compiler}} = Clang ]
+          if [ ${{matrix.compiler}} = Clang ]
           then
-            sudo apt-get install -y clang-${{ matrix.cfg.version }}
-          elif [ ${{matrix.cfg.compiler}} = GNU ]
+            sudo apt-get install -y clang-${{ matrix.version }}
+          elif [ ${{matrix.compiler}} = GNU ]
           then
-            sudo apt-get install -y g++-${{ matrix.cfg.version }}
+            sudo apt-get install -y g++-${{ matrix.version }}
           fi
           sudo ln -s /usr/bin/ld.lld-9 /usr/bin/ld.lld
 
@@ -49,23 +49,23 @@ jobs:
           mkdir build
           cmake \
             -GNinja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
-            -DCMAKE_C_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang || echo gcc)-${{ matrix.cfg.version }} \
-            -DCMAKE_CXX_COMPILER=$([ ${{ matrix.cfg.compiler }} = Clang ] && echo clang++ || echo g++)-${{ matrix.cfg.version }} \
-            -Ddze_optional_sanitize_address=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
-            -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config }} \
+            -DCMAKE_C_COMPILER=$([ ${{ matrix.compiler }} = Clang ] && echo clang || echo gcc)-${{ matrix.version }} \
+            -DCMAKE_CXX_COMPILER=$([ ${{ matrix.compiler }} = Clang ] && echo clang++ || echo g++)-${{ matrix.version }} \
+            -Ddze_optional_sanitize_address=$([ ${{ matrix.config }} = Debug ] && echo ON || echo OFF) \
+            -Ddze_optional_sanitize_ub=$([ ${{ matrix.config }} = Debug ] && echo ON || echo OFF) \
             -Ddze_optional_use_lld=ON \
             -B build \
             -S .
           ninja -v -C build
 
   macos_build:
-    name: macOS ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }} ${{ matrix.cfg.version }}
+    name: macOS ${{ matrix.config }} build with ${{ matrix.compiler }} ${{ matrix.version }}
     runs-on: macos-latest
     strategy:
       fail-fast: false
       matrix:
-        cfg:
+        include:
           - { compiler: AppleClang, version: x,  config: Debug }
           - { compiler: AppleClang, version: x,  config: Release }
           - { compiler: Clang,      version: 9,  config: Debug }
@@ -79,12 +79,12 @@ jobs:
       - name: Setup system
         run: |
           brew install llvm cmake ninja
-          if [ ${{matrix.cfg.compiler}} = Clang ]
+          if [ ${{matrix.compiler}} = Clang ]
           then
-            brew install llvm@${{ matrix.cfg.version }}
-          elif [ ${{matrix.cfg.compiler}} = GNU ]
+            brew install llvm@${{ matrix.version }}
+          elif [ ${{matrix.compiler}} = GNU ]
           then
-            brew install gcc@${{ matrix.cfg.version }}
+            brew install gcc@${{ matrix.version }}
           fi
           sudo ln -s "$(brew --prefix llvm)/bin/clang-tidy" /usr/local/bin/clang-tidy
 
@@ -98,44 +98,44 @@ jobs:
           mkdir build
           cmake \
             -GNinja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config }} \
             -DCMAKE_C_COMPILER=$( \
-              if [ ${{ matrix.cfg.compiler }} = AppleClang ]
+              if [ ${{ matrix.compiler }} = AppleClang ]
               then
                 echo clang
-              elif [ ${{ matrix.cfg.compiler }} = Clang ]
+              elif [ ${{ matrix.compiler }} = Clang ]
               then
-                echo $(brew --prefix llvm@${{ matrix.cfg.version }})/bin/clang
-              elif [ ${{ matrix.cfg.compiler }} = GNU ]
+                echo $(brew --prefix llvm@${{ matrix.version }})/bin/clang
+              elif [ ${{ matrix.compiler }} = GNU ]
               then
-                echo gcc-${{ matrix.cfg.version }}
+                echo gcc-${{ matrix.version }}
               fi) \
             -DCMAKE_CXX_COMPILER=$( \
-              if [ ${{ matrix.cfg.compiler }} = AppleClang ]
+              if [ ${{ matrix.compiler }} = AppleClang ]
               then
                 echo clang++
-              elif [ ${{ matrix.cfg.compiler }} = Clang ]
+              elif [ ${{ matrix.compiler }} = Clang ]
               then
-                echo $(brew --prefix llvm@${{ matrix.cfg.version }})/bin/clang++
-              elif [ ${{ matrix.cfg.compiler }} = GNU ]
+                echo $(brew --prefix llvm@${{ matrix.version }})/bin/clang++
+              elif [ ${{ matrix.compiler }} = GNU ]
               then
-                echo g++-${{ matrix.cfg.version }}
+                echo g++-${{ matrix.version }}
               fi) \
-            -Ddze_optional_sanitize_address=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
-            -Ddze_optional_sanitize_ub=$([ ${{ matrix.cfg.config }} = Debug ] && echo ON || echo OFF) \
+            -Ddze_optional_sanitize_address=$([ ${{ matrix.config }} = Debug ] && echo ON || echo OFF) \
+            -Ddze_optional_sanitize_ub=$([ ${{ matrix.config }} = Debug ] && echo ON || echo OFF) \
             -B build \
             -S .
           ninja -v -C build
 
   windows_build:
-    name: Windows ${{ matrix.cfg.config }} build with ${{ matrix.cfg.compiler }}
+    name: Windows ${{ matrix.config }} build with MSVC
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
-        cfg:
-          - { compiler: VS2019, config: Debug }
-          - { compiler: VS2019, config: Release }
+        include:
+          - { config: Debug }
+          - { config: Release }
 
     steps:
       - name: Enable Developer Command Prompt
@@ -175,7 +175,7 @@ jobs:
           mkdir build
           cmake \
             -GNinja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.cfg.config }} \
+            -DCMAKE_BUILD_TYPE=${{ matrix.config }} \
             -DCMAKE_C_COMPILER=cl \
             -DCMAKE_CXX_COMPILER=cl \
             -Ddze_optional_static_analyzer=OFF \

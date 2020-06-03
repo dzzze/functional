@@ -115,7 +115,10 @@ public:
 
     [[nodiscard]] constexpr T& value() const
     {
-        return has_value() ? *m_ptr : (throw std::bad_optional_access{}, *m_ptr);
+        if (!has_value())
+            throw std::bad_optional_access{};
+
+        return *m_ptr;
     }
 
     template <typename U>

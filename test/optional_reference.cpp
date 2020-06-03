@@ -11,17 +11,17 @@ class derived;
 class base
 {
 public:
-    explicit constexpr base(const int i) noexcept
-        : m_i{i} {}
+    explicit constexpr base(const int val) noexcept
+        : m_val{val} {}
 
-    constexpr operator int() const noexcept { return m_i; }
+    constexpr operator int() const noexcept { return m_val; }
 
     explicit constexpr operator const derived&() const noexcept;
 
     explicit constexpr operator derived&() noexcept;
 
 private:
-    int m_i;
+    int m_val;
 };
 
 class derived : public base
@@ -37,7 +37,7 @@ constexpr base::operator const derived&() const noexcept
 constexpr base::operator derived&() noexcept { return *static_cast<derived*>(this); }
 
 constexpr base b{42};
-constexpr derived d{42};
+constexpr derived d{84};
 
 } // namespace
 
@@ -104,11 +104,11 @@ TEST_CASE("Constructors", "[constructors]")
         test_t o4(o1);
         test_t o5 = {o1};
 
-        REQUIRE(*o1 == 42);
-        REQUIRE(*o2 == 42);
-        REQUIRE(*o3 == 42);
-        REQUIRE(*o4 == 42);
-        REQUIRE(*o5 == 42);
+        REQUIRE(*o1 == 84);
+        REQUIRE(*o2 == 84);
+        REQUIRE(*o3 == 84);
+        REQUIRE(*o4 == 84);
+        REQUIRE(*o5 == 84);
     }
 
     SECTION("explicit construct from another optional type")
@@ -143,10 +143,7 @@ TEST_CASE("Assignment", "[assignment]")
     {
         using test_t = dze::optional_reference<const base>;
 
-        base b{42};
         test_t o1 = b;
-        derived d{84};
-
         o1 = d;
         REQUIRE(o1.has_value());
         CHECK(*o1 == 84);
@@ -211,11 +208,8 @@ TEST_CASE("Assignment", "[assignment]")
     {
         using test_t = dze::optional_reference<const base>;
 
-        base b{42};
         test_t o1 = b;
-        derived d{84};
         dze::optional_reference<const derived> o2 = d;
-
         o1 = o2;
         REQUIRE(o1.has_value());
         CHECK(*o1 == 84);
@@ -227,9 +221,7 @@ TEST_CASE("Assignment", "[assignment]")
     {
         using test_t = dze::optional_reference<const base>;
 
-        base b{42};
         test_t o1 = b;
-
         dze::optional_reference<const derived> o2;
         o1 = o2;
         CHECK(!o1.has_value());
@@ -255,10 +247,7 @@ TEST_CASE("Emplace", "[emplace]")
     {
         using test_t = dze::optional_reference<const base>;
 
-        base b{42};
         test_t o1 = b;
-        derived d{84};
-
         o1.emplace(d);
         REQUIRE(o1.has_value());
         CHECK(*o1 == 84);
