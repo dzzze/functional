@@ -16,9 +16,6 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang" OR
     add_compile_options($<$<CXX_COMPILER_ID:GNU>:-Wshadow=compatible-local>)
     add_compile_options($<$<CONFIG:Debug>:-g3>)
 
-    add_compile_options($<$<AND:$<PLATFORM_ID:Darwin>,$<CXX_COMPILER_ID:GNU>>:-fvisibility=hidden>)
-    add_link_options($<$<AND:$<PLATFORM_ID:Darwin>,$<CXX_COMPILER_ID:GNU>>:-fvisibility=hidden>)
-
     option(${PROJECT_NAME}_sanitize_address "Enable address sanitizer" OFF)
     add_compile_options($<$<BOOL:${${PROJECT_NAME}_sanitize_address}>:-fsanitize=address>)
     add_compile_options($<$<BOOL:${${PROJECT_NAME}_sanitize_address}>:-fno-sanitize-recover=address>)
