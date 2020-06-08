@@ -335,11 +335,12 @@ class function : public details::function_ns::base<function<Signature, Alloc>, S
 
     struct conv_tag_t {};
 
-    template <typename Signature2>
+    template <typename Sig>
     static constexpr bool is_movable_v =
-        std::is_same_v<Signature2, typename base::const_signature> ||
-        std::is_same_v<Signature2, typename base::nothrow_signature> ||
-        std::is_same_v<Signature2, typename base::const_nothrow_signature>;
+        std::is_same_v<Sig, Signature> ||
+        std::is_same_v<Sig, typename base::const_signature> ||
+        std::is_same_v<Sig, typename base::nothrow_signature> ||
+        std::is_same_v<Sig, typename base::const_nothrow_signature>;
 
 public:
     function() noexcept
@@ -374,13 +375,6 @@ public:
     function(const function&) = delete;
     function& operator=(const function&) = delete;
 
-    function(function&& other) noexcept
-        : m_delegate{other.m_delegate}
-        , m_storage{std::move(other.m_storage)}
-    {
-        other.m_delegate.reset();
-    }
-
     template <typename Signature2 = Signature,
         DZE_REQUIRES(is_movable_v<Signature2>)>
     function(function<Signature2, Alloc>&& other) noexcept
@@ -398,15 +392,6 @@ public:
             base::template is_convertible_v<function<Signature2>>)>
     function(function<Signature2, Alloc2>&& other, const Alloc& alloc = Alloc{}) noexcept
         : function{std::move(other), alloc, conv_tag_t{}} {}
-
-    function& operator=(function&& other) noexcept
-    {
-        m_delegate.destroy(data_addr());
-        m_delegate = other.m_delegate;
-        m_storage = std::move(other.m_storage);
-        other.m_delegate.reset();
-        return *this;
-    }
 
     template <typename Signature2 = Signature,
         DZE_REQUIRES(is_movable_v<Signature2>)>
