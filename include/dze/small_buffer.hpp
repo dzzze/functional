@@ -30,48 +30,49 @@ struct non_sbo_t
     size_type capacity;
 };
 
-template <size_t buffer_size, bool = true>
+template <size_t Size, bool = Size == sizeof(non_sbo_t)>
 struct storage_t
 {
     non_sbo_t non_sbo;
 };
 
-template <size_t buffer_size>
-struct storage_t<buffer_size, false>
+template <size_t Size>
+struct storage_t<Size, false>
 {
-    std::byte padding[buffer_size - sizeof(non_sbo_t)];
+    std::byte padding[Size - sizeof(non_sbo_t)];
     non_sbo_t non_sbo;
 };
 
 } // namespace details::small_buffer_ns
 
 // This class is only available on little endian systems.
-// buffer_size must be a multiple of the sizeof(void*) and must be less
+// Size must be a multiple of the sizeof(void*) and must be less
 // than or equal to 2^(CHAR_BIT - 1) and greater than or equal to 3 *
 // sizeof(void*).
 template <
-    size_t buffer_size = sizeof(details::small_buffer_ns::non_sbo_t),
-    size_t buffer_alignment = alignof(details::small_buffer_ns::non_sbo_t),
-    typename allocator = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
+    size_t Size = sizeof(details::small_buffer_ns::non_sbo_t),
+    size_t Align = alignof(details::small_buffer_ns::non_sbo_t),
+    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
 class small_buffer
-    : private allocator
+    : private Alloc
     , private enable_copy_move<
         true,
-        std::allocator_traits<allocator>::propagate_on_container_copy_assignment::value ||
-            std::allocator_traits<allocator>::is_always_equal::value,
+        std::allocator_traits<Alloc>::propagate_on_container_copy_assignment::value ||
+            std::allocator_traits<Alloc>::is_always_equal::value,
         true,
-        std::allocator_traits<allocator>::propagate_on_container_move_assignment::value ||
-            std::allocator_traits<allocator>::is_always_equal::value>
+        std::allocator_traits<Alloc>::propagate_on_container_move_assignment::value ||
+            std::allocator_traits<Alloc>::is_always_equal::value>
 {
-    // Inheriting from the allocator to benefit from empty base
+    // Inheriting from the Alloc to benefit from empty base
     // optimization.
     // TODO: C++20 use [[no_unique_address]] for the same effect.
 
     using non_sbo_t = details::small_buffer_ns::non_sbo_t;
+    using alloc_traits = std::allocator_traits<Alloc>;
 
 public:
     using value_type = non_sbo_t::value_type;
-    using allocator_type = allocator;
+    using allocator_type = Alloc;
     using size_type = non_sbo_t::size_type;
     using reference = value_type&;
     using const_reference = const value_type&;
@@ -80,29 +81,23 @@ public:
     using iterator = pointer;
     using const_iterator = const_pointer;
 
-    small_buffer() noexcept(noexcept(allocator{}))
-        : small_buffer{allocator{}} {}
+    small_buffer() noexcept(noexcept(Alloc{}))
+        : small_buffer{Alloc{}} {}
 
-    explicit small_buffer(const allocator& alloc) noexcept
+    explicit small_buffer(const Alloc& alloc) noexcept
         : small_buffer{0, alloc} {}
 
     // NOLINTNEXTLINE(readability-avoid-const-params-in-decls)
-    explicit small_buffer(const size_type size, const allocator& alloc = allocator{}) noexcept
-        : allocator{alloc}
-    {
-        if (size > max_sbo_capacity())
-            init_non_sbo(size);
-        else
-            set_sbo_size(size);
-    }
+    explicit small_buffer(const size_type size, const Alloc& alloc = Alloc{}) noexcept
+        : small_buffer{size, Align, alloc} {}
 
     small_buffer(
         const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
         const size_type alignment, // NOLINT(readability-avoid-const-params-in-decls)
-        const allocator& alloc = allocator{}) noexcept
-        : allocator{alloc}
+        const Alloc& alloc = Alloc{}) noexcept
+        : Alloc{alloc}
     {
-        if (size > max_sbo_capacity() || alignment > buffer_alignment)
+        if (size > max_sbo_capacity() || alignment > Align)
             init_non_sbo(size, alignment);
         else
             set_sbo_size(size);
@@ -111,7 +106,7 @@ public:
     small_buffer(
         const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
         const value_type value, // NOLINT(readability-avoid-const-params-in-decls)
-        const allocator& alloc = allocator{}) noexcept
+        const Alloc& alloc = Alloc{}) noexcept
         : small_buffer{size, alloc}
     {
         std::uninitialized_fill(begin(), end(), value);
@@ -121,7 +116,7 @@ public:
         const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
         const size_type alignment, // NOLINT(readability-avoid-const-params-in-decls)
         const value_type value, // NOLINT(readability-avoid-const-params-in-decls)
-        const allocator& alloc = allocator{}) noexcept
+        const Alloc& alloc = Alloc{}) noexcept
         : small_buffer{size, alignment, alloc}
     {
         std::uninitialized_fill(begin(), end(), value);
@@ -130,17 +125,15 @@ public:
     small_buffer(const small_buffer& other) noexcept
         : small_buffer{
             other,
-            std::allocator_traits<allocator_type>::select_on_container_copy_construction(
-                other.get_allocator())} {}
+            alloc_traits::select_on_container_copy_construction(other.get_allocator())} {}
 
-    small_buffer(const small_buffer& other, const allocator& alloc) noexcept : allocator{alloc}
+    small_buffer(const small_buffer& other, const Alloc& alloc) noexcept : Alloc{alloc}
     {
         if (other.sbo())
             copy_sbo(other);
         else
         {
-            const auto size = other.non_sbo_size();
-            init_non_sbo(size);
+            init_non_sbo(other.non_sbo_size(), other.non_sbo_alignment());
             copy_non_sbo(other);
         }
     }
@@ -149,56 +142,44 @@ public:
     // reuse its allocated memory.
     small_buffer& operator=(const small_buffer& other) noexcept
     {
-        if (sbo())
+        if (sbo() && other.sbo())
+            copy_sbo(other);
+        else if (other.sbo())
+            copy_sbo_to_non_sbo(other);
+        else if (sbo())
         {
-            if (other.sbo())
-                copy_sbo(other);
-            else
+            const auto size = other.non_sbo_size();
+            const auto alignment = other.non_sbo_alignment();
+            if (size > max_sbo_capacity() || alignment > Align)
             {
-                const auto size = other.non_sbo_size();
-                const auto alignment = other.non_sbo_alignment();
-                if (size > max_sbo_capacity() || alignment > buffer_alignment)
-                {
-                    if constexpr (std::allocator_traits<allocator_type>::
-                        propagate_on_container_copy_assignment::value)
-                    {
-                        static_cast<allocator&>(*this) = static_cast<allocator&>(other);
-                    }
-                    init_non_sbo(size, alignment);
-                    copy_non_sbo(other);
-                }
-                else
-                    copy_non_sbo_to_sbo(other);
+                if constexpr (alloc_traits::propagate_on_container_copy_assignment::value)
+                    static_cast<Alloc&>(*this) = static_cast<Alloc&>(other);
+                init_non_sbo(size, alignment);
+                copy_non_sbo(other);
             }
+            else
+                copy_non_sbo_to_sbo(other);
         }
         else
         {
-            if (other.sbo())
-                copy_sbo_to_non_sbo(other);
-            else
+            const auto size = other.non_sbo_size();
+            const auto alignment = other.non_sbo_alignment();
+            if (size > non_sbo_capacity() || alignment > non_sbo_alignment())
             {
-                const auto size = other.non_sbo_size();
-                const auto alignment = other.non_sbo_alignment();
-                if (size > non_sbo_capacity() || alignment > non_sbo_alignment())
-                {
-                    deallocate();
-                    if constexpr (std::allocator_traits<allocator_type>::
-                        propagate_on_container_copy_assignment::value)
-                    {
-                        static_cast<allocator&>(*this) = static_cast<allocator&>(other);
-                    }
-                    init_non_sbo(size, alignment);
-                }
-                else
-                    set_non_sbo_size(size);
-                copy_non_sbo(other);
+                deallocate();
+                if constexpr (alloc_traits::propagate_on_container_copy_assignment::value)
+                    static_cast<Alloc&>(*this) = static_cast<Alloc&>(other);
+                init_non_sbo(size, alignment);
             }
+            else
+                set_non_sbo_size(size);
+            copy_non_sbo(other);
         }
         return *this;
     }
 
     small_buffer(small_buffer&& other) noexcept
-        : allocator{std::move(static_cast<allocator&>(other))}
+        : Alloc{std::move(static_cast<Alloc&>(other))}
     {
         if (other.sbo())
             copy_sbo(other);
@@ -213,36 +194,18 @@ public:
     // take ownership of the source memory.
     small_buffer& operator=(small_buffer&& other) noexcept
     {
-        if (sbo())
-        {
-            if (other.sbo())
-                copy_sbo(other);
-            else
-            {
-                if constexpr (std::allocator_traits<allocator_type>::
-                    propagate_on_container_move_assignment::value)
-                {
-                    static_cast<allocator&>(*this) = static_cast<allocator&>(other);
-                }
-                as_non_sbo() = other.as_non_sbo();
-                other.set_sbo_size(0);
-            }
-        }
+        if (sbo() && other.sbo())
+            copy_sbo(other);
+        else if (other.sbo())
+            copy_sbo_to_non_sbo(other);
         else
         {
-            if (other.sbo())
-                copy_sbo_to_non_sbo(other);
-            else
-            {
+            if (!sbo())
                 deallocate();
-                if constexpr (std::allocator_traits<allocator_type>::
-                    propagate_on_container_move_assignment::value)
-                {
-                    static_cast<allocator&>(*this) = static_cast<allocator&>(other);
-                }
-                as_non_sbo() = other.as_non_sbo();
-                other.set_sbo_size(0);
-            }
+            if constexpr (alloc_traits::propagate_on_container_move_assignment::value)
+                static_cast<Alloc&>(*this) = static_cast<Alloc&>(other);
+            as_non_sbo() = other.as_non_sbo();
+            other.set_sbo_size(0);
         }
         return *this;
     }
@@ -258,11 +221,8 @@ public:
     // is false and get_allocator() != other.get_allocator().
     void swap(small_buffer& other) noexcept
     {
-        if constexpr (std::allocator_traits<allocator_type>::
-            propagate_on_container_swap::value)
-        {
-            swap(static_cast<allocator&>(*this), static_cast<allocator&>(other));
-        }
+        if constexpr (alloc_traits::propagate_on_container_swap::value)
+            swap(static_cast<Alloc&>(*this), static_cast<Alloc&>(other));
         else
             assert(get_allocator() == other.get_allocator());
 
@@ -271,27 +231,14 @@ public:
 
     void resize(const size_type new_size) noexcept
     {
-        if (sbo())
-        {
-            if (new_size > max_sbo_capacity())
-                resize_convert_to_non_sbo(new_size, buffer_alignment);
-            else
-                set_sbo_size(new_size);
-        }
-        else
-        {
-            if (new_size > non_sbo_capacity())
-                resize_expand_non_sbo(new_size, buffer_alignment);
-            else
-                set_non_sbo_size(new_size);
-        }
+        resize(new_size, Align);
     }
 
     void resize(const size_type new_size, const size_type alignment) noexcept
     {
         if (sbo())
         {
-            if (new_size > max_sbo_capacity() || alignment > buffer_alignment)
+            if (new_size > max_sbo_capacity() || alignment > Align)
                 resize_convert_to_non_sbo(new_size, alignment);
             else
                 set_sbo_size(new_size);
@@ -316,20 +263,7 @@ public:
     // Discards the stored data if new_size results in allocation.
     void resize_discard(const size_type new_size) noexcept
     {
-        if (sbo())
-        {
-            if (new_size > max_sbo_capacity())
-                init_non_sbo(new_size, buffer_alignment);
-            else
-                set_sbo_size(new_size);
-        }
-        else
-        {
-            if (new_size > non_sbo_capacity())
-                resize_discard_expand_non_sbo(new_size, buffer_alignment);
-            else
-                set_non_sbo_size(new_size);
-        }
+        resize_discard(new_size, Align);
     }
 
     // Discards the stored data if new_size results in allocation.
@@ -337,7 +271,7 @@ public:
     {
         if (sbo())
         {
-            if (new_size > max_sbo_capacity() || alignment > buffer_alignment)
+            if (new_size > max_sbo_capacity() || alignment > Align)
                 init_non_sbo(new_size, alignment);
             else
                 set_sbo_size(new_size);
@@ -357,17 +291,17 @@ public:
         {
             if (new_cap > max_sbo_capacity())
             {
-                auto new_storage = allocator::allocate(new_cap, buffer_alignment);
+                auto new_storage = allocate(new_cap, Align);
                 relocate(new_storage);
                 init_non_sbo(new_storage, sbo_size(), new_cap);
-                set_non_sbo_alignment(buffer_alignment);
+                set_non_sbo_alignment(Align);
             }
         }
         else
         {
             if (new_cap > non_sbo_capacity())
             {
-                auto new_storage = allocator::allocate(new_cap, non_sbo_alignment());
+                auto new_storage = allocate(new_cap, non_sbo_alignment());
                 relocate(new_storage);
                 deallocate();
                 as_non_sbo().data = new_storage;
@@ -383,16 +317,16 @@ public:
         {
             if (new_cap > max_sbo_capacity())
             {
-                init_non_sbo(
-                    allocator::allocate(new_cap, buffer_alignment), sbo_size(), new_cap);
-                set_non_sbo_alignment(buffer_alignment);
+                auto new_storage = allocate(new_cap, Align);
+                init_non_sbo(new_storage, sbo_size(), new_cap);
+                set_non_sbo_alignment(Align);
             }
         }
         else
         {
             if (new_cap > non_sbo_capacity())
             {
-                auto new_storage = allocator::allocate(new_cap, non_sbo_alignment());
+                auto new_storage = allocate(new_cap, non_sbo_alignment());
                 deallocate();
                 as_non_sbo().data = new_storage;
                 set_non_sbo_capacity(new_cap);
@@ -411,7 +345,7 @@ public:
 
     [[nodiscard]] static constexpr size_type max_sbo_capacity() noexcept
     {
-        return buffer_size - 1;
+        return Size - 1;
     }
 
     [[nodiscard]] size_type capacity() const noexcept
@@ -419,14 +353,14 @@ public:
         return sbo() ? max_sbo_capacity() : non_sbo_capacity();
     }
 
-    [[nodiscard]] reference operator[](const size_type pos) noexcept
+    [[nodiscard]] const_reference operator[](const size_type pos) const noexcept
     {
         assert(pos < size());
 
         return data()[pos];
     }
 
-    [[nodiscard]] const_reference operator[](const size_type pos) const noexcept
+    [[nodiscard]] reference operator[](const size_type pos) noexcept
     {
         assert(pos < size());
 
@@ -460,38 +394,37 @@ public:
 
 private:
     static_assert(
-        buffer_size >= sizeof(non_sbo_t),
+        Size >= sizeof(non_sbo_t),
         "Stack size of this object must be bigger than or equal to "
         "size of the dynamic allocation book keeping bits.");
 
     static_assert(
-        buffer_size <= 1 << (CHAR_BIT - 1),
+        Size <= 1 << (CHAR_BIT - 1),
         "Stack size of this object must be less than or equal to "
-        "the maximum value addressable with std::byte_BIT - 1.");
+        "the maximum value addressable with CHAR_BIT - 1.");
 
     static_assert(
-        buffer_size % alignof(non_sbo_t) == 0,
+        Size % alignof(non_sbo_t) == 0,
         "Size of this object must be a multiple of the alignment "
         "of void* in this platform.");
 
     static_assert(
-        buffer_alignment % alignof(non_sbo_t) == 0,
+        Align % alignof(non_sbo_t) == 0,
         "Alignment of this object must be a multiple of the alignment "
         "of void* in this platform.");
 
-    static constexpr bool tight_packed = buffer_size == sizeof(non_sbo_t);
     static constexpr std::byte short_mask{0x1};
     static constexpr size_type long_mask =
-        size_type{0x1} << (std::numeric_limits<size_type>::digits -
-            std::numeric_limits<value_type>::digits - 1);
+        size_type{0x1} <<
+            (std::numeric_limits<size_type>::digits -
+             std::numeric_limits<value_type>::digits - 1);
 
-    alignas(buffer_alignment)
-        details::small_buffer_ns::storage_t<buffer_size, tight_packed> m_storage;
+    alignas(Align) details::small_buffer_ns::storage_t<Size> m_storage;
 
     [[nodiscard]] bool sbo() const noexcept
     {
         return
-            (static_cast<std::byte>(sbo_data()[buffer_size - 1]) & short_mask) ==
+            (static_cast<std::byte>(sbo_data()[Size - 1]) & short_mask) ==
             static_cast<std::byte>(0);
     }
 
@@ -501,28 +434,24 @@ private:
 
     [[nodiscard]] const_pointer sbo_data() const noexcept
     {
-        static_assert(std::is_same_v<const_pointer, const std::byte*>);
-
         return reinterpret_cast<const_pointer>(&m_storage);
     }
 
     [[nodiscard]] pointer sbo_data() noexcept
     {
-        static_assert(std::is_same_v<pointer, std::byte*>);
-
         return reinterpret_cast<pointer>(&m_storage);
     }
 
     [[nodiscard]] size_type sbo_size() const noexcept
     {
-        return std::to_integer<size_type>(sbo_data()[buffer_size - 1] >> 1);
+        return std::to_integer<size_type>(sbo_data()[Size - 1] >> 1);
     }
 
     void set_sbo_size(const size_type size) noexcept
     {
         assert(size <= max_sbo_capacity());
 
-        sbo_data()[buffer_size - 1] = static_cast<std::byte>(size << 1);
+        sbo_data()[Size - 1] = static_cast<std::byte>(size << 1);
     }
 
     [[nodiscard]] const_pointer non_sbo_data() const noexcept { return as_non_sbo().data; }
@@ -539,14 +468,14 @@ private:
         as_non_sbo().size = size;
     }
 
-    void set_non_sbo_alignment(const size_type alignment) noexcept
-    {
-        as_non_sbo().alignment = alignment;
-    }
-
     [[nodiscard]] size_type non_sbo_alignment() const noexcept
     {
         return as_non_sbo().alignment;
+    }
+
+    void set_non_sbo_alignment(const size_type alignment) noexcept
+    {
+        as_non_sbo().alignment = alignment;
     }
 
     [[nodiscard]] size_type non_sbo_capacity() const noexcept
@@ -563,15 +492,10 @@ private:
         as_non_sbo().capacity = cap | long_mask;
     }
 
-    void init_non_sbo(const size_t cap) noexcept
-    {
-        init_non_sbo(cap, buffer_alignment);
-    }
-
     void init_non_sbo(const size_t cap, const size_t alignment) noexcept
     {
         set_non_sbo_alignment(alignment);
-        init_non_sbo(allocator::allocate(cap, alignment), cap);
+        init_non_sbo(allocate(cap, alignment), cap);
     }
 
     // NOLINTNEXTLINE(readability-non-const-parameter)
@@ -617,9 +541,14 @@ private:
         std::uninitialized_copy(other.non_sbo_data(), other.non_sbo_data() + size, sbo_data());
     }
 
+    [[nodiscard]] auto allocate(const size_t size, const size_t alignment) noexcept
+    {
+        return get_allocator().allocate(size, alignment);
+    }
+
     void deallocate() noexcept
     {
-        allocator::deallocate(non_sbo_data(), non_sbo_alignment());
+        get_allocator().deallocate(non_sbo_data(), non_sbo_alignment());
     }
 
     void relocate(const pointer destination) const noexcept
@@ -629,7 +558,7 @@ private:
 
     void resize_convert_to_non_sbo(const size_type new_size, const size_t alignment) noexcept
     {
-        auto new_storage = allocator::allocate(new_size, alignment);
+        auto new_storage = allocate(new_size, alignment);
         relocate(new_storage);
         init_non_sbo(new_storage, new_size);
         set_non_sbo_alignment(alignment);
@@ -637,7 +566,7 @@ private:
 
     void resize_expand_non_sbo(const size_type new_size, const size_t alignment) noexcept
     {
-        auto new_storage = allocator::allocate(new_size, alignment);
+        auto new_storage = allocate(new_size, alignment);
         relocate(new_storage);
         deallocate();
         init_non_sbo(new_storage, new_size);
@@ -647,7 +576,7 @@ private:
     void resize_discard_expand_non_sbo(
         const size_type new_size, const size_t alignment) noexcept
     {
-        auto new_storage = allocator::allocate(new_size, alignment);
+        auto new_storage = allocate(new_size, alignment);
         deallocate();
         init_non_sbo(new_storage, new_size);
         set_non_sbo_alignment(alignment);
@@ -655,24 +584,38 @@ private:
 };
 
 template <
-    size_t buffer_size = sizeof(details::small_buffer_ns::non_sbo_t),
-    size_t buffer_alignment = alignof(details::small_buffer_ns::non_sbo_t),
-    typename allocator = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(allocator = allocator{})
-    -> small_buffer<buffer_size, buffer_alignment, allocator>;
+    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
+small_buffer(Alloc = Alloc{}) -> small_buffer<
+    sizeof(details::small_buffer_ns::non_sbo_t),
+    alignof(details::small_buffer_ns::non_sbo_t),
+    Alloc>;
 
 template <
-    size_t buffer_size = sizeof(details::small_buffer_ns::non_sbo_t),
-    size_t buffer_alignment = alignof(details::small_buffer_ns::non_sbo_t),
-    typename allocator = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(size_t, allocator = allocator{})
-    -> small_buffer<buffer_size, buffer_alignment, allocator>;
+    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
+small_buffer(size_t, Alloc = Alloc{}) -> small_buffer<
+    sizeof(details::small_buffer_ns::non_sbo_t),
+    alignof(details::small_buffer_ns::non_sbo_t),
+    Alloc>;
 
 template <
-    size_t buffer_size = sizeof(details::small_buffer_ns::non_sbo_t),
-    size_t buffer_alignment = alignof(details::small_buffer_ns::non_sbo_t),
-    typename allocator = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(size_t, std::byte, allocator = allocator{})
-    -> small_buffer<buffer_size, buffer_alignment, allocator>;
+    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
+small_buffer(size_t, size_t, Alloc = Alloc{}) -> small_buffer<
+    sizeof(details::small_buffer_ns::non_sbo_t),
+    alignof(details::small_buffer_ns::non_sbo_t),
+    Alloc>;
+
+template <
+    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
+small_buffer(size_t, std::byte, Alloc = Alloc{}) -> small_buffer<
+    sizeof(details::small_buffer_ns::non_sbo_t),
+    alignof(details::small_buffer_ns::non_sbo_t),
+    Alloc>;
+
+template <
+    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
+small_buffer(size_t, size_t, std::byte, Alloc = Alloc{}) -> small_buffer<
+    sizeof(details::small_buffer_ns::non_sbo_t),
+    alignof(details::small_buffer_ns::non_sbo_t),
+    Alloc>;
 
 } // namespace dze

@@ -113,7 +113,7 @@ private:
     deleter_t* m_deleter;
 };
 
-template <typename Alloc>
+template <size_t Size, size_t Align, typename Alloc>
 class storage
 {
 public:
@@ -142,7 +142,7 @@ public:
     [[nodiscard]] std::byte* data() noexcept { return m_underlying.data(); }
 
 private:
-    small_buffer<128 - 2 * sizeof(void*), 2 * alignof(void*), Alloc> m_underlying;
+    small_buffer<Size, Align, Alloc> m_underlying;
 };
 
 template <typename From, typename To>
@@ -171,9 +171,9 @@ private:
     struct is_convertible<
         Callable,
         std::enable_if_t<
+            std::is_invocable_v<std::decay_t<Callable>&, Args...> &&
             is_safely_convertible_v<
-                std::invoke_result_t<std::decay_t<Callable>&, Args...>, R> &&
-            std::is_invocable_v<std::decay_t<Callable>&, Args...>>>
+                std::invoke_result_t<std::decay_t<Callable>&, Args...>, R>>>
         : std::true_type {};
 
 protected:
@@ -205,9 +205,9 @@ private:
     struct is_convertible<
         Callable,
         std::enable_if_t<
+            std::is_invocable_v<const std::decay_t<Callable>&, Args...> &&
             is_safely_convertible_v<
-                std::invoke_result_t<const std::decay_t<Callable>&, Args...>, R> &&
-            std::is_invocable_r_v<R, const std::decay_t<Callable>&, Args...>>>
+                std::invoke_result_t<const std::decay_t<Callable>&, Args...>, R>>>
         : std::true_type {};
 
 protected:
@@ -239,9 +239,9 @@ private:
     struct is_convertible<
         Callable,
         std::enable_if_t<
+            std::is_nothrow_invocable_v<std::decay_t<Callable>&, Args...> &&
             is_safely_convertible_v<
-                std::invoke_result_t<std::decay_t<Callable>&, Args...>, R> &&
-            std::is_nothrow_invocable_v<std::decay_t<Callable>&, Args...>>>
+                std::invoke_result_t<std::decay_t<Callable>&, Args...>, R>>>
         : std::true_type {};
 
 protected:
@@ -273,10 +273,9 @@ private:
     struct is_convertible<
         Callable,
         std::enable_if_t<
+            std::is_nothrow_invocable_v<const std::decay_t<Callable>&, Args...> &&
             is_safely_convertible_v<
-                std::invoke_result_t<const std::decay_t<Callable>&, Args...>,
-                R> &&
-            std::is_nothrow_invocable_v<const std::decay_t<Callable>&, Args...>>>
+                std::invoke_result_t<const std::decay_t<Callable>&, Args...>, R>>>
         : std::true_type {};
 
 protected:
@@ -420,10 +419,10 @@ public:
     }
 
     template <
-        typename member_t,
-        typename object_t,
-        typename = decltype(function{std::mem_fn(std::declval<member_t object_t::*>())})>
-    function& operator=(member_t object_t::*const ptr) noexcept
+        typename Member,
+        typename Object,
+        typename = decltype(function{std::mem_fn(std::declval<Member Object::*>())})>
+    function& operator=(Member Object::*const ptr) noexcept
     {
         *this = ptr ? std::mem_fn(ptr) : nullptr;
         return *this;
@@ -457,8 +456,9 @@ private:
         return static_cast<bool>(f);
     }
 
-    alignas(64) typename base::delegate_type m_delegate;
-    details::function_ns::storage<Alloc> m_storage;
+    alignas(32) typename base::delegate_type m_delegate;
+    details::function_ns::storage<128 - sizeof(m_delegate), alignof(std::max_align_t), Alloc>
+        m_storage;
 
     template <typename Callable>
     function(Callable call, const Alloc& alloc, conv_tag_t) noexcept
