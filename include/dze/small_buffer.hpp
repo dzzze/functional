@@ -11,7 +11,7 @@
 
 #include "aligned_allocator.hpp"
 
-namespace q::util {
+namespace dze {
 
 namespace details::small_buffer_ns {
 
@@ -44,8 +44,6 @@ struct storage_t<buffer_size, false>
 };
 
 } // namespace details::small_buffer_ns
-
-using dze::enable_copy_move; // TODO
 
 // This class is only available on little endian systems.
 // buffer_size must be a multiple of the sizeof(void*) and must be less
@@ -677,4 +675,4 @@ template <
 small_buffer(size_t, std::byte, allocator = allocator{})
     -> small_buffer<buffer_size, buffer_alignment, allocator>;
 
-} // namespace q::util
+} // namespace dze

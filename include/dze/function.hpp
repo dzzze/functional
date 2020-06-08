@@ -10,7 +10,7 @@
 
 #include "small_buffer.hpp"
 
-namespace q::util {
+namespace dze {
 
 namespace details::function_ns {
 
@@ -548,4 +548,4 @@ template <
     typename Alloc = aligned_allocator<std::byte>>
 function(Callable, Alloc = Alloc{}) -> function<Signature, Alloc>;
 
-} // namespace q::util
+} // namespace dze
