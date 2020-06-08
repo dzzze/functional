@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cassert>
+#include <climits>
+#include <cstddef>
 #include <limits>
 #include <memory>
 #include <utility>
@@ -8,9 +10,6 @@
 #include <dze/type_traits.hpp>
 
 #include "aligned_allocator.hpp"
-#include "details/enable_special_members.hpp"
-
-// TODO use std::byte
 
 namespace q::util {
 
@@ -20,7 +19,7 @@ namespace details::small_buffer_ns {
 // template parameter of the the following class.
 struct non_sbo_t
 {
-    using value_type = char;
+    using value_type = std::byte;
     using size_type = size_t;
     using pointer = value_type*;
     using const_pointer = const value_type*;
@@ -40,11 +39,13 @@ struct storage_t
 template <size_t buffer_size>
 struct storage_t<buffer_size, false>
 {
-    char padding[buffer_size - sizeof(non_sbo_t)];
+    std::byte padding[buffer_size - sizeof(non_sbo_t)];
     non_sbo_t non_sbo;
 };
 
 } // namespace details::small_buffer_ns
+
+using dze::enable_copy_move; // TODO
 
 // This class is only available on little endian systems.
 // buffer_size must be a multiple of the sizeof(void*) and must be less
@@ -56,13 +57,13 @@ template <
     typename allocator = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
 class small_buffer
     : private allocator
-    , private details::enable_copy_move<
-          true,
-          std::allocator_traits<allocator>::propagate_on_container_copy_assignment::value ||
-              std::allocator_traits<allocator>::is_always_equal::value,
-          true,
-          std::allocator_traits<allocator>::propagate_on_container_move_assignment::value ||
-              std::allocator_traits<allocator>::is_always_equal::value>
+    , private enable_copy_move<
+        true,
+        std::allocator_traits<allocator>::propagate_on_container_copy_assignment::value ||
+            std::allocator_traits<allocator>::is_always_equal::value,
+        true,
+        std::allocator_traits<allocator>::propagate_on_container_move_assignment::value ||
+            std::allocator_traits<allocator>::is_always_equal::value>
 {
     // Inheriting from the allocator to benefit from empty base
     // optimization.
@@ -466,9 +467,9 @@ private:
         "size of the dynamic allocation book keeping bits.");
 
     static_assert(
-        buffer_size <= 1 << (std::numeric_limits<unsigned char>::digits - 1),
+        buffer_size <= 1 << (CHAR_BIT - 1),
         "Stack size of this object must be less than or equal to "
-        "the maximum value addressable with CHAR_BIT - 1.");
+        "the maximum value addressable with std::byte_BIT - 1.");
 
     static_assert(
         buffer_size % alignof(non_sbo_t) == 0,
@@ -481,7 +482,7 @@ private:
         "of void* in this platform.");
 
     static constexpr bool tight_packed = buffer_size == sizeof(non_sbo_t);
-    static constexpr unsigned char short_mask = 0x1;
+    static constexpr std::byte short_mask{0x1};
     static constexpr size_type long_mask =
         size_type{0x1} << (std::numeric_limits<size_type>::digits -
             std::numeric_limits<value_type>::digits - 1);
@@ -492,8 +493,8 @@ private:
     [[nodiscard]] bool sbo() const noexcept
     {
         return
-            (static_cast<unsigned char>(sbo_data()[buffer_size - 1]) & short_mask) ==
-            static_cast<unsigned char>(0);
+            (static_cast<std::byte>(sbo_data()[buffer_size - 1]) & short_mask) ==
+            static_cast<std::byte>(0);
     }
 
     [[nodiscard]] const non_sbo_t& as_non_sbo() const noexcept { return m_storage.non_sbo; }
@@ -502,28 +503,28 @@ private:
 
     [[nodiscard]] const_pointer sbo_data() const noexcept
     {
-        static_assert(std::is_same_v<const_pointer, const char*>);
+        static_assert(std::is_same_v<const_pointer, const std::byte*>);
 
         return reinterpret_cast<const_pointer>(&m_storage);
     }
 
     [[nodiscard]] pointer sbo_data() noexcept
     {
-        static_assert(std::is_same_v<pointer, char*>);
+        static_assert(std::is_same_v<pointer, std::byte*>);
 
         return reinterpret_cast<pointer>(&m_storage);
     }
 
     [[nodiscard]] size_type sbo_size() const noexcept
     {
-        return static_cast<unsigned char>(sbo_data()[buffer_size - 1]) >> 1;
+        return std::to_integer<size_type>(sbo_data()[buffer_size - 1] >> 1);
     }
 
     void set_sbo_size(const size_type size) noexcept
     {
         assert(size <= max_sbo_capacity());
 
-        sbo_data()[buffer_size - 1] = static_cast<unsigned char>(size << 1);
+        sbo_data()[buffer_size - 1] = static_cast<std::byte>(size << 1);
     }
 
     [[nodiscard]] const_pointer non_sbo_data() const noexcept { return as_non_sbo().data; }
@@ -673,7 +674,7 @@ template <
     size_t buffer_size = sizeof(details::small_buffer_ns::non_sbo_t),
     size_t buffer_alignment = alignof(details::small_buffer_ns::non_sbo_t),
     typename allocator = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(size_t, char, allocator = allocator{})
+small_buffer(size_t, std::byte, allocator = allocator{})
     -> small_buffer<buffer_size, buffer_alignment, allocator>;
 
 } // namespace q::util

@@ -29,5 +29,5 @@ if (${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang" OR
     option(${PROJECT_NAME}_use_lld "Use the LLVM linker" OFF)
     add_link_options($<$<BOOL:${${PROJECT_NAME}_use_lld}>:-fuse-ld=lld>)
 elseif (MSVC)
-    add_compile_options(/W4 /WX)
+    add_compile_options(/WX)
 endif ()

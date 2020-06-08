@@ -8,7 +8,7 @@ set(proj_name dze_type_traits)
 fetch_content(
     ${proj_name}_proj
     GIT_REPOSITORY https://github.com/dzzze/type_traits.git
-    GIT_TAG 76318a79be1be64e00730e3413ac2c36a242a885
+    GIT_TAG f002dab81e529f74dc872dd588ca6597ac1ac41b
     GIT_SHALLOW true
     PREFIX "${thirdparty_prefix}/${proj_name}"
     SOURCE_DIR "${thirdparty_prefix}/${proj_name}/source"
