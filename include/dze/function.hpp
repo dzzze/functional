@@ -120,35 +120,29 @@ public:
     storage() noexcept = default;
 
     storage(const Alloc& alloc) noexcept
-        : m_storage{alloc} {}
+        : m_underlying{alloc} {}
 
     storage(const size_t size, const Alloc& alloc) noexcept
-        : m_storage{size, alloc} {}
+        : m_underlying{size, alloc} {}
 
     storage(const size_t size, const size_t alignment, const Alloc& alloc) noexcept
-        : m_storage{size, alignment, alloc} {}
+        : m_underlying{size, alignment, alloc} {}
 
-    storage(const storage&) = delete;
-    storage& operator=(const storage&) = delete;
-
-    storage(storage&&) noexcept = default;
-    storage& operator=(storage&&) noexcept = default;
-
-    void swap(storage& other) noexcept { m_storage.swap(other.m_storage); }
+    void swap(storage& other) noexcept { m_underlying.swap(other.m_underlying); }
 
     void resize(const size_t size, const size_t alignment) noexcept
     {
-        m_storage.resize_discard(size, alignment);
+        m_underlying.resize_discard(size, alignment);
     }
 
-    [[nodiscard]] size_t size() const noexcept { return m_storage.size(); }
+    [[nodiscard]] size_t size() const noexcept { return m_underlying.size(); }
 
-    [[nodiscard]] const std::byte* data() const noexcept { return m_storage.data(); }
+    [[nodiscard]] const std::byte* data() const noexcept { return m_underlying.data(); }
 
-    [[nodiscard]] std::byte* data() noexcept { return m_storage.data(); }
+    [[nodiscard]] std::byte* data() noexcept { return m_underlying.data(); }
 
 private:
-    small_buffer<128 - 2 * sizeof(void*), 2 * alignof(void*), Alloc> m_storage;
+    small_buffer<128 - 2 * sizeof(void*), 2 * alignof(void*), Alloc> m_underlying;
 };
 
 template <typename From, typename To>
@@ -158,15 +152,15 @@ inline constexpr bool is_safely_convertible_v =
 template <typename, typename>
 class base;
 
-template <typename function_t, typename R, typename... Args>
-class base<function_t, R(Args...)>
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...)>
 {
 public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args)
     {
-        return static_cast<function_t*>(this)->m_delegate.call(
-            static_cast<function_t*>(this)->data_addr(), static_cast<Args&&>(args)...);
+        return static_cast<Function*>(this)->m_delegate.call(
+            static_cast<Function*>(this)->data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -182,11 +176,8 @@ private:
             std::is_invocable_v<std::decay_t<Callable>&, Args...>>>
         : std::true_type {};
 
-    static constexpr bool Const = false;
-    static constexpr bool Noexcept = false;
-
 protected:
-    using delegate_type = delegate_t<R(Args...), Const, Noexcept>;
+    using delegate_type = delegate_t<R(Args...), false, false>;
     using const_signature = R(Args...) const;
     using nothrow_signature = R(Args...) noexcept;
     using const_nothrow_signature = R(Args...) const noexcept;
@@ -195,15 +186,15 @@ protected:
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
 };
 
-template <typename function_t, typename R, typename... Args>
-class base<function_t, R(Args...) const>
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...) const>
 {
 public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) const
     {
-        return static_cast<const function_t*>(this)->m_delegate.call(
-            static_cast<const function_t*>(this)->data_addr(), static_cast<Args&&>(args)...);
+        return static_cast<const Function*>(this)->m_delegate.call(
+            static_cast<const Function*>(this)->data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -219,11 +210,8 @@ private:
             std::is_invocable_r_v<R, const std::decay_t<Callable>&, Args...>>>
         : std::true_type {};
 
-    static constexpr bool Const = true;
-    static constexpr bool Noexcept = false;
-
 protected:
-    using delegate_type = delegate_t<R(Args...), Const, Noexcept>;
+    using delegate_type = delegate_t<R(Args...), true, false>;
     using const_signature = R(Args...) const;
     using nothrow_signature = R(Args...) const noexcept;
     using const_nothrow_signature = R(Args...) const noexcept;
@@ -232,15 +220,15 @@ protected:
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
 };
 
-template <typename function_t, typename R, typename... Args>
-class base<function_t, R(Args...) noexcept>
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...) noexcept>
 {
 public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) noexcept
     {
-        return static_cast<function_t*>(this)->m_delegate.call(
-            static_cast<function_t*>(this)->data_addr(), static_cast<Args&&>(args)...);
+        return static_cast<Function*>(this)->m_delegate.call(
+            static_cast<Function*>(this)->data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -256,11 +244,8 @@ private:
             std::is_nothrow_invocable_v<std::decay_t<Callable>&, Args...>>>
         : std::true_type {};
 
-    static constexpr bool Const = false;
-    static constexpr bool Noexcept = true;
-
 protected:
-    using delegate_type = delegate_t<R(Args...), Const, Noexcept>;
+    using delegate_type = delegate_t<R(Args...), false, true>;
     using const_signature = R(Args...) const noexcept;
     using nothrow_signature = R(Args...) noexcept;
     using const_nothrow_signature = R(Args...) const noexcept;
@@ -269,15 +254,15 @@ protected:
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
 };
 
-template <typename function_t, typename R, typename... Args>
-class base<function_t, R(Args...) const noexcept>
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...) const noexcept>
 {
 public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) const noexcept
     {
-        return static_cast<const function_t*>(this)->m_delegate.call(
-            static_cast<const function_t*>(this)->data_addr(), static_cast<Args&&>(args)...);
+        return static_cast<const Function*>(this)->m_delegate.call(
+            static_cast<const Function*>(this)->data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -294,11 +279,8 @@ private:
             std::is_nothrow_invocable_v<const std::decay_t<Callable>&, Args...>>>
         : std::true_type {};
 
-    static constexpr bool Const = true;
-    static constexpr bool Noexcept = true;
-
 protected:
-    using delegate_type = delegate_t<R(Args...), Const, Noexcept>;
+    using delegate_type = delegate_t<R(Args...), true, true>;
     using const_signature = R(Args...) const noexcept;
     using nothrow_signature = R(Args...) const noexcept;
     using const_nothrow_signature = R(Args...) const noexcept;
