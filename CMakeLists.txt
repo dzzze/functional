@@ -23,8 +23,13 @@ if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
     option(${PROJECT_NAME}_unit_tests "Enable unit tests" ON)
 
     if (${PROJECT_NAME}_unit_tests)
-        enable_testing()
         add_custom_target(${PROJECT_NAME}-run-custom-tests ALL)
         add_subdirectory(test)
+    endif ()
+
+    option(${PROJECT_NAME}_benchmark "Enable benchmarks" ON)
+
+    if (${PROJECT_NAME}_benchmark)
+        add_subdirectory(benchmark)
     endif ()
 endif ()
