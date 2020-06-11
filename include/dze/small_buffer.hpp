@@ -85,11 +85,20 @@ public:
         : small_buffer{Alloc{}} {}
 
     explicit small_buffer(const Alloc& alloc) noexcept
-        : small_buffer{0, alloc} {}
+        : Alloc{alloc}
+    {
+        set_sbo_size(0);
+    }
 
     // NOLINTNEXTLINE(readability-avoid-const-params-in-decls)
     explicit small_buffer(const size_type size, const Alloc& alloc = Alloc{}) noexcept
-        : small_buffer{size, Align, alloc} {}
+        : Alloc{alloc}
+    {
+        if (size > max_sbo_capacity())
+            init_non_sbo(size, Align);
+        else
+            set_sbo_size(size);
+    }
 
     small_buffer(
         const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
@@ -413,11 +422,10 @@ private:
         "Alignment of this object must be a multiple of the alignment "
         "of void* in this platform.");
 
-    static constexpr std::byte short_mask{0x1};
+    static constexpr std::byte short_mask{0x1 << (CHAR_BIT - 1)};
     static constexpr size_type long_mask =
         size_type{0x1} <<
-            (std::numeric_limits<size_type>::digits -
-             std::numeric_limits<value_type>::digits - 1);
+            (std::numeric_limits<size_type>::digits - 1);
 
     alignas(Align) details::small_buffer_ns::storage_t<Size> m_storage;
 
@@ -444,14 +452,14 @@ private:
 
     [[nodiscard]] size_type sbo_size() const noexcept
     {
-        return std::to_integer<size_type>(sbo_data()[Size - 1] >> 1);
+        return std::to_integer<size_type>(sbo_data()[Size - 1]);
     }
 
     void set_sbo_size(const size_type size) noexcept
     {
         assert(size <= max_sbo_capacity());
 
-        sbo_data()[Size - 1] = static_cast<std::byte>(size << 1);
+        sbo_data()[Size - 1] = static_cast<std::byte>(size);
     }
 
     [[nodiscard]] const_pointer non_sbo_data() const noexcept { return as_non_sbo().data; }
