@@ -46,10 +46,7 @@ private:
     small_buffer<Size, Align, Alloc> m_underlying;
 };
 
-template <typename, bool, bool>
-class delegate_t;
-
-template <typename Callable, bool Const = false>
+template <typename Callable, bool Const>
 // NOLINTNEXTLINE(readability-non-const-parameter)
 auto& get_object(std::byte* const data) noexcept
 {
@@ -79,29 +76,19 @@ void deleter_stub(std::byte* const data) noexcept
 {
     using callable_decay_t = std::decay_t<Callable>;
 
-    get_object<Callable>(data).~callable_decay_t();
+    get_object<Callable, false>(data).~callable_decay_t();
 }
 
-template <bool Const, bool Noexcept, typename R, typename... Args>
-class delegate_t<R(Args...), Const, Noexcept>
+template <typename, bool>
+class delegate_t;
+
+template <bool Noexcept, typename R, typename... Args>
+class delegate_t<R(Args...), Noexcept>
 {
 public:
     delegate_t() = default;
 
-    template <bool Const2>
-    delegate_t(const delegate_t<R(Args...), Const2, Noexcept>& other) noexcept
-        : m_call{other.m_call}
-        , m_deleter{other.m_deleter} {}
-
-    template <bool Const2>
-    delegate_t& operator=(const delegate_t<R(Args...), Const2, Noexcept>& other) noexcept
-    {
-        m_call = other.m_call;
-        m_deleter = other.m_deleter;
-        return *this;
-    }
-
-    template <typename Callable>
+    template <typename Callable, bool Const>
     void set() noexcept
     {
         m_call = call_stub<Callable, Const, Noexcept, R, Args...>;
@@ -125,8 +112,6 @@ public:
 
     [[nodiscard]] bool empty() const noexcept { return m_call == nullptr; }
 
-    template <bool C = Const,
-        DZE_REQUIRES(C)>
     R call(const std::byte* const data, Args... args) const noexcept(Noexcept)
     {
         assert(!empty());
@@ -134,8 +119,6 @@ public:
         return this->m_call(const_cast<std::byte*>(data), static_cast<Args&&>(args)...);
     }
 
-    template <bool C = Const,
-        DZE_REQUIRES(!C)>
     R call(std::byte* data, Args... args) const noexcept(Noexcept)
     {
         assert(!empty());
@@ -144,8 +127,6 @@ public:
     }
 
 private:
-    friend class delegate_t<R(Args...), !Const, Noexcept>;
-
     using call_t = R(std::byte*, Args...) noexcept(Noexcept);
     using deleter_t = void(std::byte*) noexcept;
 
@@ -167,8 +148,8 @@ public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args)
     {
-        auto& this_obj = *static_cast<Function*>(this);
-        return this_obj.m_delegate.call(this_obj.data_addr(), static_cast<Args&&>(args)...);
+        auto& obj = *static_cast<Function*>(this);
+        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -185,8 +166,10 @@ private:
         : std::true_type {};
 
 protected:
-    using delegate_type = delegate_t<R(Args...), false, false>;
+    using delegate_type = delegate_t<R(Args...), false>;
     using const_signature = R(Args...) const;
+
+    static constexpr bool is_const = false;
 
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
@@ -199,8 +182,8 @@ public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) const
     {
-        auto& this_obj = *static_cast<const Function*>(this);
-        return this_obj.m_delegate.call(this_obj.data_addr(), static_cast<Args&&>(args)...);
+        auto& obj = *static_cast<const Function*>(this);
+        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -217,8 +200,10 @@ private:
         : std::true_type {};
 
 protected:
-    using delegate_type = delegate_t<R(Args...), true, false>;
+    using delegate_type = delegate_t<R(Args...), false>;
     using const_signature = R(Args...) const;
+
+    static constexpr bool is_const = true;
 
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
@@ -231,8 +216,8 @@ public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) noexcept
     {
-        auto& this_obj = *static_cast<Function*>(this);
-        return this_obj.m_delegate.call(this_obj.data_addr(), static_cast<Args&&>(args)...);
+        auto& obj = *static_cast<Function*>(this);
+        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -249,8 +234,10 @@ private:
         : std::true_type {};
 
 protected:
-    using delegate_type = delegate_t<R(Args...), false, true>;
+    using delegate_type = delegate_t<R(Args...), true>;
     using const_signature = R(Args...) const noexcept;
+
+    static constexpr bool is_const = false;
 
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
@@ -263,8 +250,8 @@ public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) const noexcept
     {
-        auto& this_obj = *static_cast<const Function*>(this);
-        return this_obj.m_delegate.call(this_obj.data_addr(), static_cast<Args&&>(args)...);
+        auto& obj = *static_cast<const Function*>(this);
+        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -281,8 +268,10 @@ private:
         : std::true_type {};
 
 protected:
-    using delegate_type = delegate_t<R(Args...), true, true>;
+    using delegate_type = delegate_t<R(Args...), true>;
     using const_signature = R(Args...) const noexcept;
+
+    static constexpr bool is_const = true;
 
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
@@ -462,7 +451,7 @@ private:
     function(Callable call, const Alloc& alloc, conv_tag_t) noexcept
         : m_storage{sizeof(std::decay_t<Callable>), alignof(std::decay_t<Callable>), alloc}
     {
-        m_delegate.template set<Callable>();
+        m_delegate.template set<Callable, this->is_const>();
         ::new (data_addr()) std::decay_t<Callable>{std::move(call)};
     }
 
@@ -470,7 +459,7 @@ private:
     void assign(Callable call) noexcept
     {
         m_delegate.destroy(data_addr());
-        m_delegate.template set<Callable>();
+        m_delegate.template set<Callable, this->is_const>();
         m_storage.resize(sizeof(std::decay_t<Callable>), alignof(std::decay_t<Callable>));
         ::new (data_addr()) std::decay_t<Callable>{std::move(call)};
     }
