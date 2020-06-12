@@ -387,7 +387,7 @@ private:
     function(Callable call, const Alloc& alloc, conv_tag_t) noexcept
         : m_storage{sizeof(std::decay_t<Callable>), alignof(std::decay_t<Callable>), alloc}
     {
-        m_delegate.template set<Callable, this->is_const>();
+        m_delegate.template set<Callable, base::is_const>();
         ::new (data_addr()) std::decay_t<Callable>{std::move(call)};
     }
 
@@ -395,7 +395,7 @@ private:
     void assign(Callable call) noexcept
     {
         m_delegate.destroy(data_addr());
-        m_delegate.template set<Callable, this->is_const>();
+        m_delegate.template set<Callable, base::is_const>();
         m_storage.resize(sizeof(std::decay_t<Callable>), alignof(std::decay_t<Callable>));
         ::new (data_addr()) std::decay_t<Callable>{std::move(call)};
     }
