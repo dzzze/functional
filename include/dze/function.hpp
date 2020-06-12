@@ -14,105 +14,6 @@ namespace dze {
 
 namespace details::function_ns {
 
-template <typename, bool, bool>
-class delegate_t;
-
-template <typename Callable, bool Const = false>
-// NOLINTNEXTLINE(readability-non-const-parameter)
-auto& get_object(std::byte* const data) noexcept
-{
-    using callable_decay = std::decay_t<Callable>;
-    using cast_to = std::conditional_t<Const, const callable_decay, callable_decay>;
-
-    return *reinterpret_cast<cast_to*>(data);
-}
-
-template <
-    typename Callable,
-    bool Const,
-    typename R,
-    typename... Args,
-    DZE_REQUIRES(std::is_invocable_r_v<R, Callable, Args...>)>
-R call_stub(std::byte* const data, Args... args)
-{
-    if constexpr (std::is_void_v<R>)
-        get_object<Callable, Const>(data)(static_cast<Args&&>(args)...);
-    else
-        return get_object<Callable, Const>(data)(static_cast<Args&&>(args)...);
-}
-
-template <typename Callable>
-void deleter_stub(std::byte* const data) noexcept
-{
-    using callable_decay_t = std::decay_t<Callable>;
-
-    get_object<Callable>(data).~callable_decay_t();
-}
-
-template <bool Const, bool Noexcept, typename R, typename... Args>
-class delegate_t<R(Args...), Const, Noexcept>
-{
-public:
-    delegate_t() = default;
-
-    template <bool Const2, bool Noexcept2>
-    delegate_t(const delegate_t<R(Args...), Const2, Noexcept2> other) noexcept
-        : m_call{reinterpret_cast<decltype(m_call)>(other.m_call)}
-        , m_deleter{other.m_deleter} {}
-
-    template <typename Callable>
-    void set() noexcept
-    {
-        m_call = call_stub<Callable, Const, R, Args...>;
-        if constexpr (std::is_trivially_destructible_v<std::decay_t<Callable>>)
-            m_deleter = nullptr;
-        else
-            m_deleter = deleter_stub<Callable>;
-    }
-
-    void reset() noexcept
-    {
-        m_call = nullptr;
-        m_deleter = nullptr;
-    }
-
-    void destroy(std::byte* const data) noexcept
-    {
-        if (m_deleter != nullptr)
-            m_deleter(data);
-    }
-
-    [[nodiscard]] bool empty() const noexcept { return m_call == nullptr; }
-
-    template <bool C = Const,
-        DZE_REQUIRES(C)>
-    R call(const std::byte* const data, Args... args) const noexcept(Noexcept)
-    {
-        assert(!empty());
-
-        return this->m_call(const_cast<std::byte*>(data), static_cast<Args&&>(args)...);
-    }
-
-    template <bool C = Const,
-        DZE_REQUIRES(!C)>
-    R call(std::byte* data, Args... args) noexcept(Noexcept)
-    {
-        assert(!empty());
-
-        return this->m_call(data, static_cast<Args&&>(args)...);
-    }
-
-private:
-    template <typename, bool, bool>
-    friend class delegate_t;
-
-    using call_t = R(std::byte*, Args...);
-    using deleter_t = void(std::byte*) noexcept;
-
-    call_t* m_call;
-    deleter_t* m_deleter;
-};
-
 template <size_t Size, size_t Align, typename Alloc>
 class storage
 {
@@ -145,6 +46,113 @@ private:
     small_buffer<Size, Align, Alloc> m_underlying;
 };
 
+template <typename, bool, bool>
+class delegate_t;
+
+template <typename Callable, bool Const = false>
+// NOLINTNEXTLINE(readability-non-const-parameter)
+auto& get_object(std::byte* const data) noexcept
+{
+    using callable_decay = std::decay_t<Callable>;
+    using cast_to = std::conditional_t<Const, const callable_decay, callable_decay>;
+
+    return *reinterpret_cast<cast_to*>(data);
+}
+
+template <
+    typename Callable,
+    bool Const,
+    bool Noexcept,
+    typename R,
+    typename... Args,
+    DZE_REQUIRES(std::is_invocable_r_v<R, Callable, Args...>)>
+R call_stub(std::byte* const data, Args... args) noexcept(Noexcept)
+{
+    if constexpr (std::is_void_v<R>)
+        get_object<Callable, Const>(data)(static_cast<Args&&>(args)...);
+    else
+        return get_object<Callable, Const>(data)(static_cast<Args&&>(args)...);
+}
+
+template <typename Callable>
+void deleter_stub(std::byte* const data) noexcept
+{
+    using callable_decay_t = std::decay_t<Callable>;
+
+    get_object<Callable>(data).~callable_decay_t();
+}
+
+template <bool Const, bool Noexcept, typename R, typename... Args>
+class delegate_t<R(Args...), Const, Noexcept>
+{
+public:
+    delegate_t() = default;
+
+    template <bool Const2>
+    delegate_t(const delegate_t<R(Args...), Const2, Noexcept>& other) noexcept
+        : m_call{other.m_call}
+        , m_deleter{other.m_deleter} {}
+
+    template <bool Const2>
+    delegate_t& operator=(const delegate_t<R(Args...), Const2, Noexcept>& other) noexcept
+    {
+        m_call = other.m_call;
+        m_deleter = other.m_deleter;
+        return *this;
+    }
+
+    template <typename Callable>
+    void set() noexcept
+    {
+        m_call = call_stub<Callable, Const, Noexcept, R, Args...>;
+        if constexpr (std::is_trivially_destructible_v<std::decay_t<Callable>>)
+            m_deleter = nullptr;
+        else
+            m_deleter = deleter_stub<Callable>;
+    }
+
+    void reset() noexcept
+    {
+        m_call = nullptr;
+        m_deleter = nullptr;
+    }
+
+    void destroy(std::byte* const data) const noexcept
+    {
+        if (m_deleter != nullptr)
+            m_deleter(data);
+    }
+
+    [[nodiscard]] bool empty() const noexcept { return m_call == nullptr; }
+
+    template <bool C = Const,
+        DZE_REQUIRES(C)>
+    R call(const std::byte* const data, Args... args) const noexcept(Noexcept)
+    {
+        assert(!empty());
+
+        return this->m_call(const_cast<std::byte*>(data), static_cast<Args&&>(args)...);
+    }
+
+    template <bool C = Const,
+        DZE_REQUIRES(!C)>
+    R call(std::byte* data, Args... args) const noexcept(Noexcept)
+    {
+        assert(!empty());
+
+        return this->m_call(data, static_cast<Args&&>(args)...);
+    }
+
+private:
+    friend class delegate_t<R(Args...), !Const, Noexcept>;
+
+    using call_t = R(std::byte*, Args...) noexcept(Noexcept);
+    using deleter_t = void(std::byte*) noexcept;
+
+    call_t* m_call;
+    deleter_t* m_deleter;
+};
+
 template <typename From, typename To>
 inline constexpr bool is_safely_convertible_v =
     !std::is_reference_v<To> || std::is_reference_v<From>;
@@ -159,8 +167,8 @@ public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args)
     {
-        return static_cast<Function*>(this)->m_delegate.call(
-            static_cast<Function*>(this)->data_addr(), static_cast<Args&&>(args)...);
+        auto& this_obj = *static_cast<Function*>(this);
+        return this_obj.m_delegate.call(this_obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -179,8 +187,6 @@ private:
 protected:
     using delegate_type = delegate_t<R(Args...), false, false>;
     using const_signature = R(Args...) const;
-    using nothrow_signature = R(Args...) noexcept;
-    using const_nothrow_signature = R(Args...) const noexcept;
 
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
@@ -193,8 +199,8 @@ public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) const
     {
-        return static_cast<const Function*>(this)->m_delegate.call(
-            static_cast<const Function*>(this)->data_addr(), static_cast<Args&&>(args)...);
+        auto& this_obj = *static_cast<const Function*>(this);
+        return this_obj.m_delegate.call(this_obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -213,8 +219,6 @@ private:
 protected:
     using delegate_type = delegate_t<R(Args...), true, false>;
     using const_signature = R(Args...) const;
-    using nothrow_signature = R(Args...) const noexcept;
-    using const_nothrow_signature = R(Args...) const noexcept;
 
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
@@ -227,8 +231,8 @@ public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) noexcept
     {
-        return static_cast<Function*>(this)->m_delegate.call(
-            static_cast<Function*>(this)->data_addr(), static_cast<Args&&>(args)...);
+        auto& this_obj = *static_cast<Function*>(this);
+        return this_obj.m_delegate.call(this_obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -247,8 +251,6 @@ private:
 protected:
     using delegate_type = delegate_t<R(Args...), false, true>;
     using const_signature = R(Args...) const noexcept;
-    using nothrow_signature = R(Args...) noexcept;
-    using const_nothrow_signature = R(Args...) const noexcept;
 
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
@@ -261,8 +263,8 @@ public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) const noexcept
     {
-        return static_cast<const Function*>(this)->m_delegate.call(
-            static_cast<const Function*>(this)->data_addr(), static_cast<Args&&>(args)...);
+        auto& this_obj = *static_cast<const Function*>(this);
+        return this_obj.m_delegate.call(this_obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -281,8 +283,6 @@ private:
 protected:
     using delegate_type = delegate_t<R(Args...), true, true>;
     using const_signature = R(Args...) const noexcept;
-    using nothrow_signature = R(Args...) const noexcept;
-    using const_nothrow_signature = R(Args...) const noexcept;
 
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
@@ -319,9 +319,7 @@ class function : public details::function_ns::base<function<Signature, Alloc>, S
     template <typename Sig>
     static constexpr bool is_movable_v =
         std::is_same_v<Sig, Signature> ||
-        std::is_same_v<Sig, typename base::const_signature> ||
-        std::is_same_v<Sig, typename base::nothrow_signature> ||
-        std::is_same_v<Sig, typename base::const_nothrow_signature>;
+        std::is_same_v<Sig, typename base::const_signature>;
 
 public:
     function() noexcept
@@ -456,7 +454,7 @@ private:
         return static_cast<bool>(f);
     }
 
-    alignas(32) typename base::delegate_type m_delegate;
+    typename base::delegate_type m_delegate;
     details::function_ns::storage<128 - sizeof(m_delegate), alignof(std::max_align_t), Alloc>
         m_storage;
 
