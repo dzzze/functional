@@ -245,7 +245,7 @@ TEST_CASE("Non-copyable lambda")
 
     CHECK(functor() == 901);
 
-    dze::function<int(void)> func = std::move(functor);
+    dze::function func = std::move(functor);
 
     CHECK(func() == 902);
 }

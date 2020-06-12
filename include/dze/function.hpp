@@ -141,12 +141,12 @@ inline constexpr bool is_safely_convertible_v =
 template <typename, typename>
 class base;
 
-template <typename Function, typename R, typename... Args>
-class base<Function, R(Args...)>
+template <typename Function, bool Noexcept, typename R, typename... Args>
+class base<Function, R(Args...) noexcept(Noexcept)>
 {
 public:
     // Pre-condition: A call is stored in this object.
-    R operator()(Args... args)
+    R operator()(Args... args) noexcept(Noexcept)
     {
         auto& obj = *static_cast<Function*>(this);
         return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
@@ -160,14 +160,16 @@ private:
     struct is_convertible<
         Callable,
         std::enable_if_t<
-            std::is_invocable_v<std::decay_t<Callable>&, Args...> &&
+            (Noexcept
+                ? std::is_nothrow_invocable_v<std::decay_t<Callable>&, Args...>
+                : std::is_invocable_v<std::decay_t<Callable>&, Args...>) &&
             is_safely_convertible_v<
                 std::invoke_result_t<std::decay_t<Callable>&, Args...>, R>>>
         : std::true_type {};
 
 protected:
-    using delegate_type = delegate_t<R(Args...), false>;
-    using const_signature = R(Args...) const;
+    using delegate_type = delegate_t<R(Args...), Noexcept>;
+    using const_signature = R(Args...) const noexcept(Noexcept);
 
     static constexpr bool is_const = false;
 
@@ -175,12 +177,12 @@ protected:
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
 };
 
-template <typename Function, typename R, typename... Args>
-class base<Function, R(Args...) const>
+template <typename Function, bool Noexcept, typename R, typename... Args>
+class base<Function, R(Args...) const noexcept(Noexcept)>
 {
 public:
     // Pre-condition: A call is stored in this object.
-    R operator()(Args... args) const
+    R operator()(Args... args) const noexcept(Noexcept)
     {
         auto& obj = *static_cast<const Function*>(this);
         return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
@@ -194,82 +196,16 @@ private:
     struct is_convertible<
         Callable,
         std::enable_if_t<
-            std::is_invocable_v<const std::decay_t<Callable>&, Args...> &&
+            (Noexcept
+                ? std::is_nothrow_invocable_v<const std::decay_t<Callable>&, Args...>
+                : std::is_invocable_v<const std::decay_t<Callable>&, Args...>) &&
             is_safely_convertible_v<
                 std::invoke_result_t<const std::decay_t<Callable>&, Args...>, R>>>
         : std::true_type {};
 
 protected:
-    using delegate_type = delegate_t<R(Args...), false>;
-    using const_signature = R(Args...) const;
-
-    static constexpr bool is_const = true;
-
-    template <typename Callable>
-    static constexpr bool is_convertible_v = is_convertible<Callable>::value;
-};
-
-template <typename Function, typename R, typename... Args>
-class base<Function, R(Args...) noexcept>
-{
-public:
-    // Pre-condition: A call is stored in this object.
-    R operator()(Args... args) noexcept
-    {
-        auto& obj = *static_cast<Function*>(this);
-        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
-    }
-
-private:
-    template <typename Callable, typename = void>
-    struct is_convertible : std::false_type {};
-
-    template <typename Callable>
-    struct is_convertible<
-        Callable,
-        std::enable_if_t<
-            std::is_nothrow_invocable_v<std::decay_t<Callable>&, Args...> &&
-            is_safely_convertible_v<
-                std::invoke_result_t<std::decay_t<Callable>&, Args...>, R>>>
-        : std::true_type {};
-
-protected:
-    using delegate_type = delegate_t<R(Args...), true>;
-    using const_signature = R(Args...) const noexcept;
-
-    static constexpr bool is_const = false;
-
-    template <typename Callable>
-    static constexpr bool is_convertible_v = is_convertible<Callable>::value;
-};
-
-template <typename Function, typename R, typename... Args>
-class base<Function, R(Args...) const noexcept>
-{
-public:
-    // Pre-condition: A call is stored in this object.
-    R operator()(Args... args) const noexcept
-    {
-        auto& obj = *static_cast<const Function*>(this);
-        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
-    }
-
-private:
-    template <typename Callable, typename = void>
-    struct is_convertible : std::false_type {};
-
-    template <typename Callable>
-    struct is_convertible<
-        Callable,
-        std::enable_if_t<
-            std::is_nothrow_invocable_v<const std::decay_t<Callable>&, Args...> &&
-            is_safely_convertible_v<
-                std::invoke_result_t<const std::decay_t<Callable>&, Args...>, R>>>
-        : std::true_type {};
-
-protected:
-    using delegate_type = delegate_t<R(Args...), true>;
-    using const_signature = R(Args...) const noexcept;
+    using delegate_type = delegate_t<R(Args...), Noexcept>;
+    using const_signature = R(Args...) const noexcept(Noexcept);
 
     static constexpr bool is_const = true;
 
