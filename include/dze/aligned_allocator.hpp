@@ -15,18 +15,12 @@ public:
     using propagate_on_container_move_assignment = std::true_type;
     using is_always_equal = std::true_type;
 
-    [[nodiscard]] std::byte* allocate(const size_t n) const noexcept
+    [[nodiscard]] void* allocate_bytes(const size_t n, const size_t alignment) const noexcept
     {
-        return allocate(n, 1);
+        return ::operator new(n, std::align_val_t{alignment}, std::nothrow_t{});
     }
 
-    [[nodiscard]] std::byte* allocate(const size_t n, const size_t alignment) const noexcept
-    {
-        return static_cast<std::byte*>(::operator new(
-            n, std::align_val_t{alignment}, std::nothrow_t{}));
-    }
-
-    void deallocate(std::byte* const p, const size_t alignment) const noexcept
+    void deallocate_bytes(void* const p, const size_t alignment) const noexcept
     {
         ::operator delete(p, std::align_val_t{alignment});
     }

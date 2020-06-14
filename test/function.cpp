@@ -200,7 +200,7 @@ TEST_CASE("Emptiness")
         CHECK(!f);
     }
 }
-
+/*
 namespace {
 
 int func_int_int_add_111(const int x) { return x + 111; }
@@ -231,7 +231,7 @@ TEST_CASE("Swap")
     mf3.swap(mf1);
     CHECK(!mf3);
     CHECK(mf1(100) == 322);
-}
+}*/
 
 TEST_CASE("Non-copyable lambda")
 {

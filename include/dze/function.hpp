@@ -15,36 +15,7 @@ namespace dze {
 namespace details::function_ns {
 
 template <size_t Size, size_t Align, typename Alloc>
-class storage
-{
-public:
-    storage() noexcept = default;
-
-    storage(const Alloc& alloc) noexcept
-        : m_underlying{alloc} {}
-
-    storage(const size_t size, const Alloc& alloc) noexcept
-        : m_underlying{size, alloc} {}
-
-    storage(const size_t size, const size_t alignment, const Alloc& alloc) noexcept
-        : m_underlying{size, alignment, alloc} {}
-
-    void swap(storage& other) noexcept { m_underlying.swap(other.m_underlying); }
-
-    void resize(const size_t size, const size_t alignment) noexcept
-    {
-        m_underlying.resize_discard(size, alignment);
-    }
-
-    [[nodiscard]] size_t size() const noexcept { return m_underlying.size(); }
-
-    [[nodiscard]] const std::byte* data() const noexcept { return m_underlying.data(); }
-
-    [[nodiscard]] std::byte* data() noexcept { return m_underlying.data(); }
-
-private:
-    small_buffer<Size, Align, Alloc> m_underlying;
-};
+using storage = small_buffer<Size, Align, Alloc>;
 
 template <typename Callable, bool Const>
 // NOLINTNEXTLINE(readability-non-const-parameter)
@@ -100,7 +71,7 @@ public:
     void set() noexcept
     {
         m_call = call_stub<Callable, Const, Noexcept, R, Args...>;
-        //m_move = move_stub<Callable>;
+        m_move = move_stub<Callable>;
         if constexpr (std::is_trivially_destructible_v<std::decay_t<Callable>>)
             m_deleter = nullptr;
         else
@@ -110,14 +81,14 @@ public:
     void reset() noexcept
     {
         m_call = nullptr;
-        //m_move = nullptr;
+        m_move = nullptr;
         m_deleter = nullptr;
     }
 
-    /*void move(std::byte* const from, std::byte* const to) const noexcept
+    void move(void* const from, void* const to) const noexcept
     {
         m_move(from, to);
-    }*/
+    }
 
     void destroy(void* const data) const noexcept
     {
@@ -147,7 +118,7 @@ private:
     using deleter_t = void(void*) noexcept;
 
     call_t* m_call;
-    //move_t* m_move;
+    move_t* m_move;
     deleter_t* m_deleter;
 };
 
@@ -245,12 +216,6 @@ template <typename T>
 inline constexpr bool is_function_v = is_function<T>::value;
 
 // Move-only polymorphic function wrapper.
-// XXX: This object assumes the function objects it stores are trivially
-// relocatable for move and swap operations. As of C++17 standard, there is no
-// avaiable way to detect this trait for types. Therefore, it is up to the user
-// to correctly pass a trivially relocatable type for correct operation. It is
-// undefined behavior to pass a non-trivially-relocatable type and use the move
-// constructor or swap method.
 template <typename Signature, typename Alloc = aligned_allocator>
 class function : public details::function_ns::base<function<Signature, Alloc>, Signature>
 {
@@ -300,12 +265,15 @@ public:
         DZE_REQUIRES(is_movable_v<Signature2>)>
     function(function<Signature2, Alloc>&& other) noexcept
         : m_delegate{other.m_delegate}
-        , m_storage{std::move(other.m_storage)} // TODO erase
+        , m_storage{std::move(other.m_storage)}
     {
-        /*if (!other.m_storage.sbo()) // TODO
-            m_storage = std::move(other.m_storage);
+        if (other.m_storage.allocated())
+            m_storage.move_allocated(other.m_storage);
         else
-            other.m_delegate.move(other.data_addr(), data_addr());*/
+        {
+            other.m_delegate.move(other.data_addr(), data_addr());
+            other.m_delegate.destroy(other.data_addr());
+        }
         other.m_delegate.reset();
     }
 
@@ -324,10 +292,16 @@ public:
     {
         m_delegate.destroy(data_addr());
         m_delegate = other.m_delegate;
-        //if (!other.m_storage.sbo()) // TODO
-            m_storage = std::move(other.m_storage);
-        //else
-        //    other.m_delegate.move(other.data_addr(), data_addr());
+        if (other.m_storage.allocated())
+        {
+            m_storage.move_allocator(other.m_storage);
+            m_storage.move_allocated(other.m_storage);
+        }
+        else
+        {
+            other.m_delegate.move(other.data_addr(), data_addr());
+            other.m_delegate.destroy(other.data_addr());
+        }
         other.m_delegate.reset();
         return *this;
     }
@@ -347,7 +321,7 @@ public:
     void swap(function& other) noexcept
     {
         std::swap(m_delegate, other.m_delegate);
-        m_storage.swap(other.m_storage);
+        // TODO m_storage.swap(other.m_storage);
     }
 
     function& operator=(std::nullptr_t) noexcept
@@ -404,11 +378,10 @@ private:
     }
 
     typename base::delegate_type m_delegate;
-    details::function_ns::storage<128 - sizeof(m_delegate), alignof(std::max_align_t), Alloc>
-        m_storage;
+    details::function_ns::storage<127 - sizeof(m_delegate), 8, Alloc> m_storage;
 
     template <typename Callable>
-    function(Callable call, const Alloc& alloc, conv_tag_t) noexcept
+    function(Callable&& call, const Alloc& alloc, conv_tag_t) noexcept
         : m_storage{sizeof(std::decay_t<Callable>), alignof(std::decay_t<Callable>), alloc}
     {
         m_delegate.template set<Callable, base::is_const>();
@@ -416,7 +389,7 @@ private:
     }
 
     template <typename Callable>
-    void assign(Callable call) noexcept
+    void assign(Callable&& call) noexcept
     {
         m_delegate.destroy(data_addr());
         m_delegate.template set<Callable, base::is_const>();
@@ -424,9 +397,9 @@ private:
         ::new (data_addr()) std::decay_t<Callable>{std::move(call)};
     }
 
-    [[nodiscard]] const std::byte* data_addr() const noexcept { return m_storage.data(); }
+    [[nodiscard]] const void* data_addr() const noexcept { return m_storage.data(); }
 
-    [[nodiscard]] std::byte* data_addr() noexcept { return m_storage.data(); }
+    [[nodiscard]] void* data_addr() noexcept { return m_storage.data(); }
 };
 
 template <typename R, typename... Args, typename Alloc = aligned_allocator>
