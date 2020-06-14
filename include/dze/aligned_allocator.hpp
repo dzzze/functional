@@ -6,55 +6,38 @@
 
 namespace dze {
 
-template <typename T = std::byte>
 class aligned_allocator
 {
 public:
-    using value_type = T;
+    using value_type = std::byte;
     using size_type = size_t;
     using difference_type = ptrdiff_t;
     using propagate_on_container_move_assignment = std::true_type;
     using is_always_equal = std::true_type;
 
-    aligned_allocator() = default;
-
-    constexpr aligned_allocator(const aligned_allocator&) noexcept = default;
-
-    template <typename U>
-    constexpr aligned_allocator(const aligned_allocator<U>&) noexcept {}
-
-    constexpr aligned_allocator& operator=(const aligned_allocator&) noexcept = default;
-
-    template <typename U>
-    constexpr aligned_allocator& operator=(const aligned_allocator<U>&) noexcept {}
-
-    [[nodiscard]] T* allocate(const size_t n) const noexcept
+    [[nodiscard]] std::byte* allocate(const size_t n) const noexcept
     {
-        return allocate(n, alignof(T));
+        return allocate(n, 1);
     }
 
-    [[nodiscard]] T* allocate(const size_t n, const size_t alignment) const noexcept
+    [[nodiscard]] std::byte* allocate(const size_t n, const size_t alignment) const noexcept
     {
-        return static_cast<T*>(::operator new(
-            n * sizeof(T), std::align_val_t{alignment}, std::nothrow_t{}));
+        return static_cast<std::byte*>(::operator new(
+            n, std::align_val_t{alignment}, std::nothrow_t{}));
     }
 
-    void deallocate(T* const p, const size_t alignment) const noexcept
+    void deallocate(std::byte* const p, const size_t alignment) const noexcept
     {
         ::operator delete(p, std::align_val_t{alignment});
     }
 };
 
-template <typename T1, typename T2>
-[[nodiscard]] constexpr bool operator==(
-    const aligned_allocator<T1>, const aligned_allocator<T2>) noexcept
+[[nodiscard]] constexpr bool operator==(aligned_allocator, aligned_allocator) noexcept
 {
     return true;
 }
 
-template <typename T1, typename T2>
-[[nodiscard]] constexpr bool operator!=(
-    const aligned_allocator<T1>, const aligned_allocator<T2>) noexcept
+[[nodiscard]] constexpr bool operator!=(aligned_allocator, aligned_allocator) noexcept
 {
     return false;
 }

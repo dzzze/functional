@@ -48,7 +48,7 @@ private:
 
 template <typename Callable, bool Const>
 // NOLINTNEXTLINE(readability-non-const-parameter)
-auto& get_object(std::byte* const data) noexcept
+auto& get_object(void* const data) noexcept
 {
     using callable_decay = std::decay_t<Callable>;
     using cast_to = std::conditional_t<Const, const callable_decay, callable_decay>;
@@ -63,7 +63,7 @@ template <
     typename R,
     typename... Args,
     DZE_REQUIRES(std::is_invocable_r_v<R, Callable, Args...>)>
-R call_stub(std::byte* const data, Args... args) noexcept(Noexcept)
+R call_stub(void* const data, Args... args) noexcept(Noexcept)
 {
     if constexpr (std::is_void_v<R>)
         get_object<Callable, Const>(data)(static_cast<Args&&>(args)...);
@@ -72,7 +72,15 @@ R call_stub(std::byte* const data, Args... args) noexcept(Noexcept)
 }
 
 template <typename Callable>
-void deleter_stub(std::byte* const data) noexcept
+void move_stub(void* const from, void* const to) noexcept
+{
+    using callable_decay_t = std::decay_t<Callable>;
+
+    ::new (to) callable_decay_t{std::move(get_object<Callable, false>(from))};
+}
+
+template <typename Callable>
+void deleter_stub(void* const data) noexcept
 {
     using callable_decay_t = std::decay_t<Callable>;
 
@@ -92,6 +100,7 @@ public:
     void set() noexcept
     {
         m_call = call_stub<Callable, Const, Noexcept, R, Args...>;
+        //m_move = move_stub<Callable>;
         if constexpr (std::is_trivially_destructible_v<std::decay_t<Callable>>)
             m_deleter = nullptr;
         else
@@ -101,10 +110,16 @@ public:
     void reset() noexcept
     {
         m_call = nullptr;
+        //m_move = nullptr;
         m_deleter = nullptr;
     }
 
-    void destroy(std::byte* const data) const noexcept
+    /*void move(std::byte* const from, std::byte* const to) const noexcept
+    {
+        m_move(from, to);
+    }*/
+
+    void destroy(void* const data) const noexcept
     {
         if (m_deleter != nullptr)
             m_deleter(data);
@@ -112,25 +127,27 @@ public:
 
     [[nodiscard]] bool empty() const noexcept { return m_call == nullptr; }
 
-    R call(const std::byte* const data, Args... args) const noexcept(Noexcept)
+    R call(const void* const data, Args... args) const noexcept(Noexcept)
     {
         assert(!empty());
 
-        return this->m_call(const_cast<std::byte*>(data), static_cast<Args&&>(args)...);
+        return m_call(const_cast<void*>(data), static_cast<Args&&>(args)...);
     }
 
-    R call(std::byte* data, Args... args) const noexcept(Noexcept)
+    R call(void* data, Args... args) const noexcept(Noexcept)
     {
         assert(!empty());
 
-        return this->m_call(data, static_cast<Args&&>(args)...);
+        return m_call(data, static_cast<Args&&>(args)...);
     }
 
 private:
-    using call_t = R(std::byte*, Args...) noexcept(Noexcept);
-    using deleter_t = void(std::byte*) noexcept;
+    using call_t = R(void*, Args...) noexcept(Noexcept);
+    using move_t = void(void*, void*) noexcept;
+    using deleter_t = void(void*) noexcept;
 
     call_t* m_call;
+    //move_t* m_move;
     deleter_t* m_deleter;
 };
 
@@ -234,7 +251,7 @@ inline constexpr bool is_function_v = is_function<T>::value;
 // to correctly pass a trivially relocatable type for correct operation. It is
 // undefined behavior to pass a non-trivially-relocatable type and use the move
 // constructor or swap method.
-template <typename Signature, typename Alloc = aligned_allocator<std::byte>>
+template <typename Signature, typename Alloc = aligned_allocator>
 class function : public details::function_ns::base<function<Signature, Alloc>, Signature>
 {
     using base = details::function_ns::base<function, Signature>;
@@ -283,8 +300,12 @@ public:
         DZE_REQUIRES(is_movable_v<Signature2>)>
     function(function<Signature2, Alloc>&& other) noexcept
         : m_delegate{other.m_delegate}
-        , m_storage{std::move(other.m_storage)}
+        , m_storage{std::move(other.m_storage)} // TODO erase
     {
+        /*if (!other.m_storage.sbo()) // TODO
+            m_storage = std::move(other.m_storage);
+        else
+            other.m_delegate.move(other.data_addr(), data_addr());*/
         other.m_delegate.reset();
     }
 
@@ -303,7 +324,10 @@ public:
     {
         m_delegate.destroy(data_addr());
         m_delegate = other.m_delegate;
-        m_storage = std::move(other.m_storage);
+        //if (!other.m_storage.sbo()) // TODO
+            m_storage = std::move(other.m_storage);
+        //else
+        //    other.m_delegate.move(other.data_addr(), data_addr());
         other.m_delegate.reset();
         return *this;
     }
@@ -405,11 +429,11 @@ private:
     [[nodiscard]] std::byte* data_addr() noexcept { return m_storage.data(); }
 };
 
-template <typename R, typename... Args, typename Alloc = aligned_allocator<std::byte>>
+template <typename R, typename... Args, typename Alloc = aligned_allocator>
 function(R (*)(Args...), Alloc = Alloc{})
     -> function<R(Args...), Alloc>;
 
-template <typename R, typename... Args, typename Alloc = aligned_allocator<std::byte>>
+template <typename R, typename... Args, typename Alloc = aligned_allocator>
 function(R (*)(Args...) noexcept, Alloc = Alloc{})
     -> function<R(Args...) noexcept, Alloc>;
 
@@ -450,7 +474,7 @@ using guide_helper_t = typename guide_helper<decltype(&Callable::operator())>::t
 template <
     typename Callable,
     typename Signature = details::function_ns::guide_helper_t<Callable>,
-    typename Alloc = aligned_allocator<std::byte>>
+    typename Alloc = aligned_allocator>
 function(Callable, Alloc = Alloc{}) -> function<Signature, Alloc>;
 
 } // namespace dze

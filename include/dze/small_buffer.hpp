@@ -52,7 +52,7 @@ struct storage_t<Size, false>
 template <
     size_t Size = sizeof(details::small_buffer_ns::non_sbo_t),
     size_t Align = alignof(details::small_buffer_ns::non_sbo_t),
-    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
+    typename Alloc = aligned_allocator>
 class small_buffer
     : private Alloc
     , private enable_copy_move<
@@ -590,40 +590,5 @@ private:
         set_non_sbo_alignment(alignment);
     }
 };
-
-template <
-    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(Alloc = Alloc{}) -> small_buffer<
-    sizeof(details::small_buffer_ns::non_sbo_t),
-    alignof(details::small_buffer_ns::non_sbo_t),
-    Alloc>;
-
-template <
-    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(size_t, Alloc = Alloc{}) -> small_buffer<
-    sizeof(details::small_buffer_ns::non_sbo_t),
-    alignof(details::small_buffer_ns::non_sbo_t),
-    Alloc>;
-
-template <
-    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(size_t, size_t, Alloc = Alloc{}) -> small_buffer<
-    sizeof(details::small_buffer_ns::non_sbo_t),
-    alignof(details::small_buffer_ns::non_sbo_t),
-    Alloc>;
-
-template <
-    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(size_t, std::byte, Alloc = Alloc{}) -> small_buffer<
-    sizeof(details::small_buffer_ns::non_sbo_t),
-    alignof(details::small_buffer_ns::non_sbo_t),
-    Alloc>;
-
-template <
-    typename Alloc = aligned_allocator<details::small_buffer_ns::non_sbo_t::value_type>>
-small_buffer(size_t, size_t, std::byte, Alloc = Alloc{}) -> small_buffer<
-    sizeof(details::small_buffer_ns::non_sbo_t),
-    alignof(details::small_buffer_ns::non_sbo_t),
-    Alloc>;
 
 } // namespace dze
