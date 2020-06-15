@@ -6,8 +6,6 @@
 
 #include <catch2/catch.hpp>
 
-namespace {
-
 struct callable_but_not_copyable
 {
     callable_but_not_copyable() = default;
@@ -20,8 +18,6 @@ struct callable_but_not_copyable
     template <class... Args>
     void operator()(Args&&...) const {}
 };
-
-} // namespace
 
 TEST_CASE("Traits")
 {
@@ -104,8 +100,6 @@ TEST_CASE("Traits")
     }
 }
 
-namespace {
-
 template <class T, size_t S>
 struct functor
 {
@@ -122,8 +116,6 @@ struct functor
         return oldvalue;
     }
 };
-
-} // namespace
 
 TEST_CASE("Invoke functor")
 {
@@ -176,7 +168,7 @@ TEST_CASE("Emptiness")
 
     SECTION("Initialized with function pointer")
     {
-        dze::function f = &func_int_int_add_25;
+        dze::function f = func_int_int_add_25;
         CHECK(f != nullptr);
         CHECK(nullptr != f);
         CHECK(f);
@@ -185,7 +177,7 @@ TEST_CASE("Emptiness")
 
     SECTION("Initialized with default constructed object")
     {
-        dze::function f{dze::function<int(int)>{}};
+        dze::function f = dze::function<int(int)>{};
         CHECK(f == nullptr);
         CHECK(nullptr == f);
         CHECK(!f);
@@ -193,7 +185,7 @@ TEST_CASE("Emptiness")
 
     SECTION("Assigned nullptr")
     {
-        dze::function f = &func_int_int_add_25;
+        dze::function f = func_int_int_add_25;
         f = nullptr;
         CHECK(f == nullptr);
         CHECK(nullptr == f);
@@ -545,16 +537,12 @@ TEST_CASE("Copy and move")
     }
 }
 
-namespace {
-
 // Templates cannot be declared inside of a local class.
 struct variadic_template_sum
 {
     template <typename... Args>
     int operator()(Args... args) const { return (args + ...); }
 };
-
-} // namespace
 
 TEST_CASE("Variadic template")
 {
@@ -593,8 +581,6 @@ TEST_CASE("Variadic arguments")
     CHECK(f3(2, 55, 44) == 99);
 }
 
-namespace {
-
 template <typename T>
 void for_each(
     const T& range, const dze::function<void(const typename T::value_type&) const>& func)
@@ -602,8 +588,6 @@ void for_each(
     for (auto& elem : range)
         func(elem);
 }
-
-} // namespace
 
 TEST_CASE("Safe capture by reference")
 {
