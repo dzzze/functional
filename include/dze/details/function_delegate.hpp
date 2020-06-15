@@ -77,7 +77,8 @@ public:
 
     void move(void* const from, void* const to) const noexcept
     {
-        m_move(from, to);
+        if (m_move != nullptr)
+            m_move(from, to);
     }
 
     void destroy(void* const data) const noexcept

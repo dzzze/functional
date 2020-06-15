@@ -35,18 +35,29 @@ public:
         : Alloc{alloc} {}
 
     storage(
-        const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
-        const size_type alignment, // NOLINT(readability-avoid-const-params-in-decls)
+        size_type size, // NOLINT(readability-avoid-const-params-in-decls)
+        size_type alignment, // NOLINT(readability-avoid-const-params-in-decls)
         const Alloc& alloc = Alloc{}) noexcept
         : Alloc{alloc}
     {
         if (size > Size || alignment > Align)
-            init_alloc_details(size, std::max(Align, alignment));
+        {
+            size = ceil64(size);
+            alignment = std::max(Align, alignment);
+            const auto buf = allocate(size, alignment);
+            init_alloc_details(buf, size, alignment);
+        }
     }
 
     storage(storage&& other) noexcept
         : Alloc{std::move(other.get_allocator())}
         , m_storage{} {}
+
+    ~storage()
+    {
+        if (allocated())
+            deallocate();
+    }
 
     void move_allcator(storage& other)
     {
@@ -61,16 +72,10 @@ public:
         other.m_storage.allocated = false;
     }
 
-    ~storage()
-    {
-        if (allocated())
-            deallocate();
-    }
-
     // Undefined behavior if
     // std::allocator_traits<allocator_type>::propagate_on_container_swap::value
     // is false and get_allocator() != other.get_allocator().
-    void swap_allocators(storage& other) noexcept
+    void swap_allocator(storage& other) noexcept
     {
         using alloc_traits = std::allocator_traits<Alloc>;
 
@@ -80,8 +85,13 @@ public:
             assert(get_allocator() == other.get_allocator());
     }
 
+    void swap_allocated(storage& other)
+    {
+        std::swap(as_alloc_details(), other.as_alloc_details());
+    }
+
     // Discards the stored data if new_size results in allocation.
-    void resize(const size_type size, size_t alignment) noexcept
+    void resize(size_type size, size_t alignment) noexcept
     {
         if (allocated())
         {
@@ -96,7 +106,12 @@ public:
         else
         {
             if (size > Size || alignment > Align)
-                init_alloc_details(size, std::max(Align, alignment));
+            {
+                size = ceil64(size);
+                alignment = std::max(Align, alignment);
+                const auto buf = allocate(size, alignment);
+                init_alloc_details(buf, size, alignment);
+            }
         }
     }
 
@@ -117,6 +132,11 @@ public:
         return m_storage.allocated;
     }
 
+    [[nodiscard]] static constexpr size_t max_inline_size() noexcept
+    {
+        return Size;
+    }
+
 private:
     static_assert(
         Size >= sizeof(alloc_details),
@@ -128,6 +148,11 @@ private:
         std::byte data[Size];
         bool allocated = false;
     } m_storage;
+
+    [[nodiscard]] static constexpr size_t ceil64(const size_t n) noexcept
+    {
+        return (n + 63) / 64 * 64;
+    }
 
     [[nodiscard]] const alloc_details& as_alloc_details() const noexcept
     {
@@ -151,11 +176,6 @@ private:
     [[nodiscard]] size_type allocated_alignment() const noexcept
     {
         return as_alloc_details().alignment;
-    }
-
-    void init_alloc_details(const size_t size, const size_t alignment) noexcept
-    {
-        init_alloc_details(allocate(size, alignment), size, alignment);
     }
 
     void init_alloc_details(const pointer data, const size_t size, const size_t alignment) noexcept

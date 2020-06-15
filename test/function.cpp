@@ -200,38 +200,73 @@ TEST_CASE("Emptiness")
         CHECK(!f);
     }
 }
-/*
-namespace {
-
-int func_int_int_add_111(const int x) { return x + 111; }
-
-} // namespace
 
 TEST_CASE("Swap")
 {
-    dze::function mf1{func_int_int_add_25};
-    dze::function mf2{func_int_int_add_111};
+    SECTION("nullptr")
+    {
+        dze::function f1 = func_int_int_add_25;
+        decltype(f1) f2{nullptr};
 
-    mf1.swap(mf2);
-    CHECK(mf2(100) == 125);
-    CHECK(mf1(100) == 211);
+        f1.swap(f2);
+        CHECK(!f1);
+        CHECK(f2(100) == 125);
 
-    dze::function<int(int)> mf3{nullptr};
+        f1.swap(f2);
+        CHECK(f1(100) == 125);
+        CHECK(!f2);
+    }
 
-    mf1.swap(mf3);
-    CHECK(mf3(100) == 211);
-    CHECK(!mf1);
+    SECTION("Both inline")
+    {
+        dze::function f1 = func_int_int_add_25;
+        dze::function f2 = [] (const int i) { return i + 111; };
 
-    dze::function mf4{[] (int x) mutable { return x + 222; }};
+        f1.swap(f2);
+        CHECK(f1(100) == 211);
+        CHECK(f2(100) == 125);
 
-    mf4.swap(mf3);
-    CHECK(mf4(100) == 211);
-    CHECK(mf3(100) == 322);
+        f1.swap(f2);
+        CHECK(f1(100) == 125);
+        CHECK(f2(100) == 211);
+    }
 
-    mf3.swap(mf1);
-    CHECK(!mf3);
-    CHECK(mf1(100) == 322);
-}*/
+    SECTION("Allocated & inline")
+    {
+        std::array<int, 101> a;
+        for (size_t i = 0; i != a.size(); ++i)
+            a[i] = i + 111;
+
+        dze::function<int(int) const> f1 = func_int_int_add_25;
+        dze::function f2 = [a] (const int i) { return a[i]; };
+
+        f1.swap(f2);
+        CHECK(f1(100) == 211);
+        CHECK(f2(100) == 125);
+
+        f1.swap(f2);
+        CHECK(f1(100) == 125);
+        CHECK(f2(100) == 211);
+    }
+
+    SECTION("Both allocated")
+    {
+        std::array<int, 101> a;
+        for (size_t i = 0; i != a.size(); ++i)
+            a[i] = i;
+
+        dze::function f1 = [a] (const int i) { return a[i] + 25; };
+        dze::function f2 = [a] (const int i) { return a[i] + 111; };
+
+        f1.swap(f2);
+        CHECK(f1(100) == 211);
+        CHECK(f2(100) == 125);
+
+        f1.swap(f2);
+        CHECK(f1(100) == 125);
+        CHECK(f2(100) == 211);
+    }
+}
 
 TEST_CASE("Non-copyable lambda")
 {

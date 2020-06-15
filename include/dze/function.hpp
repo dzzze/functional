@@ -213,7 +213,28 @@ public:
     void swap(function& other) noexcept
     {
         std::swap(m_delegate, other.m_delegate);
-        // TODO m_storage.swap(other.m_storage);
+        m_storage.swap_allocator(other.m_storage);
+        std::byte temp[decltype(m_storage)::max_inline_size()];
+        if (other.m_storage.allocated())
+        {
+            if (m_storage.allocated())
+                m_storage.swap_allocated(other.m_storage);
+            else
+            {
+                other.m_delegate.move(data_addr(), temp);
+                m_storage.move_allocated(other.m_storage);
+                other.m_delegate.move(temp, other.data_addr());
+            }
+        }
+        else
+        {
+            m_delegate.move(other.data_addr(), temp);
+            if (m_storage.allocated())
+                other.m_storage.move_allocated(m_storage);
+            else
+                other.m_delegate.move(data_addr(), other.data_addr());
+            m_delegate.move(temp, data_addr());
+        }
     }
 
     function& operator=(std::nullptr_t) noexcept
@@ -298,12 +319,11 @@ private:
 };
 
 template <typename R, typename... Args, typename Alloc = aligned_allocator>
-function(R (*)(Args...), Alloc = Alloc{})
-    -> function<R(Args...), Alloc>;
+function(R(*)(Args...), Alloc = Alloc{}) -> function<R(Args...) const, Alloc>;
 
 template <typename R, typename... Args, typename Alloc = aligned_allocator>
-function(R (*)(Args...) noexcept, Alloc = Alloc{})
-    -> function<R(Args...) noexcept, Alloc>;
+function(R(*)(Args...) noexcept, Alloc = Alloc{}) ->
+    function<R(Args...) const noexcept, Alloc>;
 
 namespace details::function_ns {
 
