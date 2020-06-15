@@ -9,11 +9,9 @@
 #include <memory>
 #include <utility>
 
-#include "aligned_allocator.hpp"
+#include "../aligned_allocator.hpp" // TODO
 
-namespace dze {
-
-namespace details::small_buffer_ns {
+namespace dze::details::function_ns {
 
 // Defining this struct here to get its size for the default
 // template parameter of the the following class.
@@ -24,29 +22,25 @@ struct non_sbo_t
     size_t alignment;
 };
 
-} // namespace details::small_buffer_ns
-
 // This class is only available on little endian systems.
 // Size must be less than or equal to 2^(2 * CHAR_BIT - 1) and greater than or equal to
 // sizeof(details::non_sbo_t).
 template <
-    size_t Size = sizeof(details::small_buffer_ns::non_sbo_t),
-    size_t Align = alignof(details::small_buffer_ns::non_sbo_t),
+    size_t Size = sizeof(non_sbo_t),
+    size_t Align = alignof(non_sbo_t),
     typename Alloc = aligned_allocator>
-class small_buffer : private Alloc
+class storage : private Alloc
 {
-    using non_sbo_t = details::small_buffer_ns::non_sbo_t;
-
 public:
     using allocator_type = Alloc;
     using size_type = size_t;
     using const_pointer = const void*;
     using pointer = void*;
 
-    explicit small_buffer(const Alloc& alloc) noexcept
+    explicit storage(const Alloc& alloc) noexcept
         : Alloc{alloc} {}
 
-    small_buffer(
+    storage(
         const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
         const size_type alignment, // NOLINT(readability-avoid-const-params-in-decls)
         const Alloc& alloc = Alloc{}) noexcept
@@ -56,16 +50,16 @@ public:
             init_non_sbo(size, std::max(Align, alignment));
     }
 
-    small_buffer(small_buffer&& other) noexcept
+    storage(storage&& other) noexcept
         : Alloc{std::move(other.get_allocator())}
         , m_storage{} {}
 
-    void move_allcator(small_buffer& other)
+    void move_allcator(storage& other)
     {
         get_allocator() = std::move(other.get_allocator());
     }
 
-    void move_allocated(small_buffer& other)
+    void move_allocated(storage& other)
     {
         ::new (&as_non_sbo()) non_sbo_t{other.as_non_sbo()};
         m_storage.allocated = true;
@@ -73,7 +67,7 @@ public:
         other.m_storage.allocated = false;
     }
 
-    ~small_buffer()
+    ~storage()
     {
         if (allocated())
             deallocate();
@@ -82,7 +76,7 @@ public:
     // Undefined behavior if
     // std::allocator_traits<allocator_type>::propagate_on_container_swap::value
     // is false and get_allocator() != other.get_allocator().
-    void swap_allocators(small_buffer& other) noexcept
+    void swap_allocators(storage& other) noexcept
     {
         using alloc_traits = std::allocator_traits<Alloc>;
 
@@ -188,4 +182,4 @@ private:
     }
 };
 
-} // namespace dze
+} // namespace dze::details::function_ns

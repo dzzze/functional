@@ -8,14 +8,11 @@
 
 #include <dze/type_traits.hpp>
 
-#include "small_buffer.hpp"
+#include "details/function_storage.hpp"
 
 namespace dze {
 
 namespace details::function_ns {
-
-template <size_t Size, size_t Align, typename Alloc>
-using storage = small_buffer<Size, Align, Alloc>;
 
 template <typename Callable, bool Const>
 // NOLINTNEXTLINE(readability-non-const-parameter)
@@ -264,8 +261,8 @@ public:
     template <typename Signature2 = Signature,
         DZE_REQUIRES(is_movable_v<Signature2>)>
     function(function<Signature2, Alloc>&& other) noexcept
-        : m_delegate{other.m_delegate}
-        , m_storage{std::move(other.m_storage)}
+        : m_storage{std::move(other.m_storage)}
+        , m_delegate{other.m_delegate}
     {
         if (other.m_storage.allocated())
             m_storage.move_allocated(other.m_storage);
@@ -288,7 +285,7 @@ public:
 
     template <typename Signature2 = Signature,
         DZE_REQUIRES(is_movable_v<Signature2>)>
-    function& operator=(function<Signature2>&& other) noexcept
+    function& operator=(function<Signature2, Alloc>&& other) noexcept
     {
         m_delegate.destroy(data_addr());
         m_delegate = other.m_delegate;
@@ -352,6 +349,8 @@ public:
     explicit operator bool() const noexcept { return !m_delegate.empty(); }
 
 private:
+    using delegate_type = typename base::delegate_type;
+
     friend class details::function_ns::base<function, Signature>;
 
     template <typename, typename>
@@ -377,8 +376,9 @@ private:
         return static_cast<bool>(f);
     }
 
-    typename base::delegate_type m_delegate;
-    details::function_ns::storage<127 - sizeof(m_delegate), 8, Alloc> m_storage;
+    details::function_ns::storage<
+        128 - 1 - sizeof(delegate_type), alignof(delegate_type), Alloc> m_storage;
+    delegate_type m_delegate;
 
     template <typename Callable>
     function(Callable&& call, const Alloc& alloc, conv_tag_t) noexcept
