@@ -15,7 +15,6 @@ namespace dze {
 namespace details::function_ns {
 
 template <typename Callable, bool Const>
-// NOLINTNEXTLINE(readability-non-const-parameter)
 auto& get_object(void* const data) noexcept
 {
     using callable_decay = std::decay_t<Callable>;

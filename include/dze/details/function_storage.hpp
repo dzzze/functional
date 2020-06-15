@@ -13,24 +13,18 @@
 
 namespace dze::details::function_ns {
 
-// Defining this struct here to get its size for the default
-// template parameter of the the following class.
-struct non_sbo_t
-{
-    void* data;
-    size_t size;
-    size_t alignment;
-};
-
 // This class is only available on little endian systems.
-// Size must be less than or equal to 2^(2 * CHAR_BIT - 1) and greater than or equal to
-// sizeof(details::non_sbo_t).
-template <
-    size_t Size = sizeof(non_sbo_t),
-    size_t Align = alignof(non_sbo_t),
-    typename Alloc = aligned_allocator>
+// Size must be greater than or equal to sizeof(alloc_details).
+template <size_t Size, size_t Align, typename Alloc>
 class storage : private Alloc
 {
+    struct alloc_details
+    {
+        void* data;
+        size_t size;
+        size_t alignment;
+    };
+
 public:
     using allocator_type = Alloc;
     using size_type = size_t;
@@ -47,7 +41,7 @@ public:
         : Alloc{alloc}
     {
         if (size > Size || alignment > Align)
-            init_non_sbo(size, std::max(Align, alignment));
+            init_alloc_details(size, std::max(Align, alignment));
     }
 
     storage(storage&& other) noexcept
@@ -61,9 +55,9 @@ public:
 
     void move_allocated(storage& other)
     {
-        ::new (&as_non_sbo()) non_sbo_t{other.as_non_sbo()};
+        ::new (&as_alloc_details()) alloc_details{other.as_alloc_details()};
         m_storage.allocated = true;
-        other.as_non_sbo().~non_sbo_t();
+        other.as_alloc_details().~alloc_details();
         other.m_storage.allocated = false;
     }
 
@@ -96,13 +90,13 @@ public:
                 alignment = std::max(Align, alignment);
                 const auto buf = allocate(size, alignment);
                 deallocate();
-                as_non_sbo() = {buf, size, alignment};
+                as_alloc_details() = {buf, size, alignment};
             }
         }
         else
         {
             if (size > Size || alignment > Align)
-                init_non_sbo(size, std::max(Align, alignment));
+                init_alloc_details(size, std::max(Align, alignment));
         }
     }
 
@@ -125,7 +119,7 @@ public:
 
 private:
     static_assert(
-        Size >= sizeof(non_sbo_t),
+        Size >= sizeof(alloc_details),
         "Inline storage size of this object must be bigger than or equal to "
         "size of the dynamic allocation book keeping bits.");
 
@@ -135,39 +129,38 @@ private:
         bool allocated = false;
     } m_storage;
 
-    [[nodiscard]] const non_sbo_t& as_non_sbo() const noexcept
+    [[nodiscard]] const alloc_details& as_alloc_details() const noexcept
     {
-        return *reinterpret_cast<const non_sbo_t*>(&m_storage.data);
+        return *reinterpret_cast<const alloc_details*>(&m_storage.data);
     }
 
-    [[nodiscard]] non_sbo_t& as_non_sbo() noexcept
+    [[nodiscard]] alloc_details& as_alloc_details() noexcept
     {
-        return *reinterpret_cast<non_sbo_t*>(&m_storage.data);
+        return *reinterpret_cast<alloc_details*>(&m_storage.data);
     }
 
-    [[nodiscard]] const_pointer allocated_data() const noexcept { return as_non_sbo().data; }
+    [[nodiscard]] const_pointer allocated_data() const noexcept { return as_alloc_details().data; }
 
-    [[nodiscard]] pointer allocated_data() noexcept { return as_non_sbo().data; }
+    [[nodiscard]] pointer allocated_data() noexcept { return as_alloc_details().data; }
 
     [[nodiscard]] size_type allocated_size() const noexcept
     {
-        return as_non_sbo().size;
+        return as_alloc_details().size;
     }
 
     [[nodiscard]] size_type allocated_alignment() const noexcept
     {
-        return as_non_sbo().alignment;
+        return as_alloc_details().alignment;
     }
 
-    void init_non_sbo(const size_t size, const size_t alignment) noexcept
+    void init_alloc_details(const size_t size, const size_t alignment) noexcept
     {
-        init_non_sbo(allocate(size, alignment), size, alignment);
+        init_alloc_details(allocate(size, alignment), size, alignment);
     }
 
-    // NOLINTNEXTLINE(readability-non-const-parameter)
-    void init_non_sbo(const pointer data, const size_t size, const size_t alignment) noexcept
+    void init_alloc_details(const pointer data, const size_t size, const size_t alignment) noexcept
     {
-        ::new (&as_non_sbo()) non_sbo_t{data, size, alignment};
+        ::new (&as_alloc_details()) alloc_details{data, size, alignment};
         m_storage.allocated = true;
     }
 
