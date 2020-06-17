@@ -18,7 +18,7 @@ set(
     function.cpp)
 
 include(add_custom_test)
-include(Catch2)
+include(thirdparty/Catch2)
 
 foreach (test ${tests})
     make_target_names(${test})

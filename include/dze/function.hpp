@@ -6,6 +6,7 @@
 #include <utility>
 
 #include <dze/allocator.hpp>
+#include <dze/memory_resource.hpp>
 #include <dze/type_traits.hpp>
 
 #include "details/function_delegate.hpp"
@@ -365,5 +366,12 @@ template <
     typename Signature = details::function_ns::guide_helper_t<Callable>,
     typename Alloc = allocator>
 function(Callable, Alloc = Alloc{}) -> function<Signature, Alloc>;
+
+namespace pmr {
+
+template <typename Signature>
+using function = ::dze::function<Signature, polymorphic_allocator>;
+
+} // namespace pmr
 
 } // namespace dze

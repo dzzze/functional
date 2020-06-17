@@ -59,6 +59,10 @@ jobs:
             -S .
           ninja -v -C build
 
+      - name: Benchmark
+        run: |
+          build/benchmark/bench
+
   macos_build:
     name: macOS ${{ matrix.config }} build with ${{ matrix.compiler }} ${{ matrix.version }}
     runs-on: macos-latest
@@ -127,6 +131,10 @@ jobs:
             -S .
           ninja -v -C build
 
+      - name: Benchmark
+        run: |
+          build/benchmark/bench
+
   windows_build:
     name: Windows ${{ matrix.config }} build with MSVC
     runs-on: windows-latest
@@ -151,24 +159,6 @@ jobs:
       - name: Install ninja
         uses: ashutoshvarma/setup-ninja@v1
 
-          #- name: Setup system
-          #  shell: bash
-          #  run: |
-          #    curl -LSso ninja.zip https://github.com/ninja-build/ninja/releases/download/v1.10.0/ninja-win.zip
-          #    unzip ninja.zip
-          #    echo "::set-env name=PATH::$(pwd):$PATH"
-
-          #- name: Path in bash
-          #  shell: bash
-          #  run: |
-          #    echo $PATH
-          #    ninja --version || echo lol
-
-          #- name: Path in ps
-          #  run: |
-          #    echo $PATH
-          #    ninja --version || echo lol
-
       - name: Build
         shell: bash
         run: |
@@ -182,3 +172,8 @@ jobs:
             -B build \
             -S .
           ninja -v -C build
+
+      - name: Benchmark
+        shell: bash
+        run: |
+          build/benchmark/bench

@@ -9,8 +9,6 @@
 #include <memory>
 #include <utility>
 
-#include <dze/allocator.hpp>
-
 namespace dze::details::function_ns {
 
 // This class is only available on little endian systems.
@@ -191,7 +189,8 @@ private:
 
     void deallocate() noexcept
     {
-        get_allocator().deallocate_bytes(allocated_data(), allocated_alignment());
+        get_allocator().deallocate_bytes(
+            allocated_data(), allocated_size(), allocated_alignment());
     }
 };
 
