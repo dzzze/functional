@@ -4,11 +4,15 @@ project(dze_functional)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMake")
 
-include(dze_type_traits)
+include(thirdparty/dze_memory)
+include(thirdparty/dze_type_traits)
 
 add_library(dze_functional INTERFACE)
 target_include_directories(dze_functional INTERFACE include)
-target_link_libraries(dze_functional INTERFACE dze::type_traits)
+target_link_libraries(
+    dze_functional
+    INTERFACE dze::memory
+    INTERFACE dze::type_traits)
 add_library(dze::functional ALIAS dze_functional)
 
 if (${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})

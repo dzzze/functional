@@ -9,7 +9,7 @@
 #include <memory>
 #include <utility>
 
-#include "../aligned_allocator.hpp" // TODO
+#include <dze/allocator.hpp>
 
 namespace dze::details::function_ns {
 

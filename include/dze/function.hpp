@@ -5,6 +5,7 @@
 #include <type_traits>
 #include <utility>
 
+#include <dze/allocator.hpp>
 #include <dze/type_traits.hpp>
 
 #include "details/function_delegate.hpp"
@@ -108,7 +109,7 @@ template <typename T>
 inline constexpr bool is_function_v = is_function<T>::value;
 
 // Move-only polymorphic function wrapper.
-template <typename Signature, typename Alloc = aligned_allocator>
+template <typename Signature, typename Alloc = allocator>
 class function : public details::function_ns::base<function<Signature, Alloc>, Signature>
 {
     using base = details::function_ns::base<function, Signature>;
@@ -318,10 +319,10 @@ private:
     [[nodiscard]] void* data_addr() noexcept { return m_storage.data(); }
 };
 
-template <typename R, typename... Args, typename Alloc = aligned_allocator>
+template <typename R, typename... Args, typename Alloc = allocator>
 function(R(*)(Args...), Alloc = Alloc{}) -> function<R(Args...) const, Alloc>;
 
-template <typename R, typename... Args, typename Alloc = aligned_allocator>
+template <typename R, typename... Args, typename Alloc = allocator>
 function(R(*)(Args...) noexcept, Alloc = Alloc{}) ->
     function<R(Args...) const noexcept, Alloc>;
 
@@ -362,7 +363,7 @@ using guide_helper_t = typename guide_helper<decltype(&Callable::operator())>::t
 template <
     typename Callable,
     typename Signature = details::function_ns::guide_helper_t<Callable>,
-    typename Alloc = aligned_allocator>
+    typename Alloc = allocator>
 function(Callable, Alloc = Alloc{}) -> function<Signature, Alloc>;
 
 } // namespace dze
