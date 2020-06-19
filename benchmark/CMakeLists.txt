@@ -1,4 +1,4 @@
-add_executable(bench bench.cpp)
+add_executable(bench bench.cpp get_objects.cpp)
 
 include(thirdparty/nanobench)
 
