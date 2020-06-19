@@ -117,23 +117,31 @@ struct functor
     }
 };
 
-TEST_CASE("Invoke functor")
+template <template <typename...> typename Function>
+void test_invoke_functor()
 {
     functor<int, 100> func;
     func(5, 42);
-    dze::function<int(size_t)> getter = func;
+    Function<int(size_t)> getter = func;
 
     CHECK(getter(5) == 42);
 }
 
-TEST_CASE("Invoke reference")
+TEST_CASE("Invoke functor", "[invoke.functor]")
+{
+    test_invoke_functor<dze::function>();
+    test_invoke_functor<dze::pmr::function>();
+}
+
+template <template <typename...> typename Function>
+void test_invoke_ref()
 {
     functor<int, 10> func;
     func(5, 123);
 
     // Have Functions for getter and setter, both referencing the same funtor
-    dze::function<int(size_t) const> getter = std::ref(func);
-    dze::function<int(size_t, int)> setter = std::ref(func);
+    Function<int(size_t) const> getter = std::ref(func);
+    Function<int(size_t, int)> setter = std::ref(func);
 
     CHECK(getter(5) == 123);
     CHECK(setter(5, 456) == 123);
@@ -141,11 +149,11 @@ TEST_CASE("Invoke reference")
     CHECK(getter(5) == 567);
 }
 
-namespace {
-
-int func_int_int_add_25(const int x) { return x + 25; }
-
-} // namespace
+TEST_CASE("Invoke reference", "[invoke.functor]")
+{
+    test_invoke_ref<dze::function>();
+    test_invoke_ref<dze::pmr::function>();
+}
 
 TEST_CASE("Emptiness")
 {
@@ -168,6 +176,7 @@ TEST_CASE("Emptiness")
 
     SECTION("Initialized with function pointer")
     {
+        int(*func_int_int_add_25 )(int) = [] (const int x ) { return x + 25; };
         dze::function f = func_int_int_add_25;
         CHECK(f != nullptr);
         CHECK(nullptr != f);
@@ -185,7 +194,7 @@ TEST_CASE("Emptiness")
 
     SECTION("Assigned nullptr")
     {
-        dze::function f = func_int_int_add_25;
+        dze::function f = [] (int x) { return x + 1; };
         f = nullptr;
         CHECK(f == nullptr);
         CHECK(nullptr == f);
@@ -193,70 +202,98 @@ TEST_CASE("Emptiness")
     }
 }
 
+template <template <typename...> typename Function>
+void test_swap_nullptr()
+{
+    Function<int(int)> f1 = [] (const int i) { return i + 25; };
+    decltype(f1) f2{nullptr};
+
+    f1.swap(f2);
+    CHECK(!f1);
+    CHECK(f2(100) == 125);
+
+    f1.swap(f2);
+    CHECK(f1(100) == 125);
+    CHECK(!f2);
+}
+
+template <template <typename...> typename Function>
+void test_swap_inline()
+{
+    Function<int(int)> f1 = [] (const int i) { return i + 25; };
+    Function<int(int)> f2 = [] (const int i) { return i + 111; };
+
+    f1.swap(f2);
+    CHECK(f1(100) == 211);
+    CHECK(f2(100) == 125);
+
+    f1.swap(f2);
+    CHECK(f1(100) == 125);
+    CHECK(f2(100) == 211);
+}
+
+template <template <typename...> typename Function>
+void test_swap_allocated_and_inline()
+{
+    std::array<int, 101> a;
+    for (size_t i = 0; i != a.size(); ++i)
+        a[i] = i + 111;
+
+    Function<int(int)> f1 = [] (const int i) { return i + 25; };
+    Function<int(int)> f2 = [a] (const int i) { return a[i]; };
+
+    f1.swap(f2);
+    CHECK(f1(100) == 211);
+    CHECK(f2(100) == 125);
+
+    f1.swap(f2);
+    CHECK(f1(100) == 125);
+    CHECK(f2(100) == 211);
+}
+
+template <template <typename...> typename Function>
+void test_swap_allocated()
+{
+    std::array<int, 101> a;
+    for (size_t i = 0; i != a.size(); ++i)
+        a[i] = i;
+
+    Function<int(int)> f1 = [a] (const int i) { return a[i] + 25; };
+    Function<int(int)> f2 = [a] (const int i) { return a[i] + 111; };
+
+    f1.swap(f2);
+    CHECK(f1(100) == 211);
+    CHECK(f2(100) == 125);
+
+    f1.swap(f2);
+    CHECK(f1(100) == 125);
+    CHECK(f2(100) == 211);
+}
+
 TEST_CASE("Swap")
 {
     SECTION("nullptr")
     {
-        dze::function f1 = func_int_int_add_25;
-        decltype(f1) f2{nullptr};
-
-        f1.swap(f2);
-        CHECK(!f1);
-        CHECK(f2(100) == 125);
-
-        f1.swap(f2);
-        CHECK(f1(100) == 125);
-        CHECK(!f2);
+        test_swap_nullptr<dze::function>();
+        test_swap_nullptr<dze::pmr::function>();
     }
 
     SECTION("Both inline")
     {
-        dze::function f1 = func_int_int_add_25;
-        dze::function f2 = [] (const int i) { return i + 111; };
-
-        f1.swap(f2);
-        CHECK(f1(100) == 211);
-        CHECK(f2(100) == 125);
-
-        f1.swap(f2);
-        CHECK(f1(100) == 125);
-        CHECK(f2(100) == 211);
+        test_swap_inline<dze::function>();
+        test_swap_inline<dze::pmr::function>();
     }
 
     SECTION("Allocated & inline")
     {
-        std::array<int, 101> a;
-        for (size_t i = 0; i != a.size(); ++i)
-            a[i] = i + 111;
-
-        dze::function<int(int) const> f1 = func_int_int_add_25;
-        dze::function f2 = [a] (const int i) { return a[i]; };
-
-        f1.swap(f2);
-        CHECK(f1(100) == 211);
-        CHECK(f2(100) == 125);
-
-        f1.swap(f2);
-        CHECK(f1(100) == 125);
-        CHECK(f2(100) == 211);
+        test_swap_allocated_and_inline<dze::function>();
+        test_swap_allocated_and_inline<dze::pmr::function>();
     }
 
     SECTION("Both allocated")
     {
-        std::array<int, 101> a;
-        for (size_t i = 0; i != a.size(); ++i)
-            a[i] = i;
-
-        dze::function f1 = [a] (const int i) { return a[i] + 25; };
-        dze::function f2 = [a] (const int i) { return a[i] + 111; };
-
-        f1.swap(f2);
-        CHECK(f1(100) == 211);
-        CHECK(f2(100) == 125);
-
-        f1.swap(f2);
-        CHECK(f1(100) == 125);
-        CHECK(f2(100) == 211);
+        test_swap_allocated<dze::function>();
+        test_swap_allocated<dze::pmr::function>();
     }
 }
 
@@ -330,19 +367,16 @@ TEST_CASE("Overloaded functor")
 
 TEST_CASE("Lambda")
 {
-    dze::function func = [] (int x) { return 1000 + x; };
-    CHECK(func(1) == 1001);
-
-    dze::function<int(int) const> func_const = [] (int x) { return 2000 + x; };
+    dze::function func_const = [] (const int x) { return 2000 + x; };
     CHECK(func_const(1) == 2001);
 
-    int number = 3000;
-    dze::function<int()> func_mutable = [number] () mutable { return ++number; };
-    CHECK(func_mutable() == 3001);
-    CHECK(func_mutable() == 3002);
+    dze::function<int(int)> func_const_to_mut = std::move(func_const);
+    CHECK(func_const_to_mut(2) == 2002);
 
-    dze::function<int(int)> func_const_made_nonconst = std::move(func_const);
-    CHECK(func_const_made_nonconst(2) == 2002);
+    int number = 3000;
+    dze::function func_mut = [number] () mutable { return ++number; };
+    CHECK(func_mut() == 3001);
+    CHECK(func_mut() == 3002);
 }
 
 TEST_CASE("Members")
@@ -537,7 +571,6 @@ TEST_CASE("Copy and move")
     }
 }
 
-// Templates cannot be declared inside of a local class.
 struct variadic_template_sum
 {
     template <typename... Args>

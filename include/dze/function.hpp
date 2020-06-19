@@ -300,9 +300,11 @@ private:
     using delegate_type = typename base::delegate_type;
 
     template <typename Function>
+    // NOLINTNEXTLINE(readability-redundant-declaration)
     friend auto details::function_ns::delegate(Function&) noexcept;
 
     template <typename Function>
+    // NOLINTNEXTLINE(readability-redundant-declaration)
     friend auto details::function_ns::data_addr(Function&) noexcept;
 
     template <typename, typename>
