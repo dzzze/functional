@@ -16,18 +16,6 @@ namespace dze {
 
 namespace details::function_ns {
 
-template <typename Function>
-auto delegate(Function& f) noexcept
-{
-    return f.m_delegate;
-}
-
-template <typename Function>
-auto data_addr(Function& f) noexcept
-{
-    return f.data_addr();
-}
-
 template <typename From, typename To>
 inline constexpr bool is_safely_convertible_v =
     !std::is_reference_v<To> || std::is_reference_v<From>;
@@ -43,7 +31,7 @@ public:
     R operator()(Args... args) noexcept(Noexcept)
     {
         auto& obj = *static_cast<Function*>(this);
-        return delegate(obj).call(data_addr(obj), static_cast<Args&&>(args)...);
+        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -64,6 +52,7 @@ private:
 protected:
     using delegate_type = delegate_t<R(Args...), Noexcept>;
     using const_signature = R(Args...) const noexcept(Noexcept);
+    using mut_signature = R(Args...) noexcept(Noexcept);
 
     static constexpr bool is_const = false;
 
@@ -79,7 +68,7 @@ public:
     R operator()(Args... args) const noexcept(Noexcept)
     {
         auto& obj = *static_cast<const Function*>(this);
-        return delegate(obj).call(data_addr(obj), static_cast<Args&&>(args)...);
+        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -100,6 +89,7 @@ private:
 protected:
     using delegate_type = delegate_t<R(Args...), Noexcept>;
     using const_signature = R(Args...) const noexcept(Noexcept);
+    using mut_signature = R(Args...) noexcept(Noexcept);
 
     static constexpr bool is_const = true;
 
@@ -108,22 +98,34 @@ protected:
 };
 
 template <typename, typename>
-class base;
+struct base;
 
 template <typename Function, typename R, typename... Args>
-class base<Function, R(Args...)> : public base_impl<Function, R(Args...), false> {};
+struct base<Function, R(Args...)>
+{
+    using type = base_impl<Function, R(Args...), false>;
+};
 
 template <typename Function, typename R, typename... Args>
-class base<Function, R(Args...) noexcept>
-    : public base_impl<Function, R(Args...) noexcept, true> {};
+struct base<Function, R(Args...) noexcept>
+{
+    using type = base_impl<Function, R(Args...) noexcept, true>;
+};
 
 template <typename Function, typename R, typename... Args>
-class base<Function, R(Args...) const>
-    : public base_impl<Function, R(Args...) const, false> {};
+struct base<Function, R(Args...) const>
+{
+    using type = base_impl<Function, R(Args...) const, false>;
+};
 
 template <typename Function, typename R, typename... Args>
-class base<Function, R(Args...) const noexcept>
-    : public base_impl<Function, R(Args...) const noexcept, true> {};
+struct base<Function, R(Args...) const noexcept>
+{
+    using type = base_impl<Function, R(Args...) const noexcept, true>;
+};
+
+template <typename Function, typename Signature>
+using base_t = typename base<Function, Signature>::type;
 
 } // namespace details::function_ns
 
@@ -141,9 +143,9 @@ inline constexpr bool is_function_v = is_function<T>::value;
 
 // Move-only polymorphic function wrapper.
 template <typename Signature, typename Alloc = allocator>
-class function : public details::function_ns::base<function<Signature, Alloc>, Signature>
+class function : public details::function_ns::base_t<function<Signature, Alloc>, Signature>
 {
-    using base = details::function_ns::base<function, Signature>;
+    using base = details::function_ns::base_t<function, Signature>;
 
     struct conv_tag_t {};
 
@@ -299,16 +301,8 @@ public:
 private:
     using delegate_type = typename base::delegate_type;
 
-    template <typename Function>
-    // NOLINTNEXTLINE(readability-redundant-declaration)
-    friend auto details::function_ns::delegate(Function&) noexcept;
-
-    template <typename Function>
-    // NOLINTNEXTLINE(readability-redundant-declaration)
-    friend auto details::function_ns::data_addr(Function&) noexcept;
-
-    template <typename, typename>
-    friend class function;
+    friend base;
+    friend class function<typename base::mut_signature, Alloc>;
 
     friend bool operator==(const function& f, std::nullptr_t) noexcept
     {
