@@ -16,22 +16,34 @@ namespace dze {
 
 namespace details::function_ns {
 
+template <typename Function>
+auto delegate(Function& f) noexcept
+{
+    return f.m_delegate;
+}
+
+template <typename Function>
+auto data_addr(Function& f) noexcept
+{
+    return f.data_addr();
+}
+
 template <typename From, typename To>
 inline constexpr bool is_safely_convertible_v =
     !std::is_reference_v<To> || std::is_reference_v<From>;
 
-template <typename, typename>
-class base;
+template <typename, typename, bool>
+class base_impl;
 
 template <typename Function, bool Noexcept, typename R, typename... Args>
-class base<Function, R(Args...) noexcept(Noexcept)>
+class base_impl<Function, R(Args...) noexcept(Noexcept), Noexcept>
 {
 public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) noexcept(Noexcept)
     {
         auto& obj = *static_cast<Function*>(this);
-        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
+        return delegate(obj).call(data_addr(obj), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -60,14 +72,14 @@ protected:
 };
 
 template <typename Function, bool Noexcept, typename R, typename... Args>
-class base<Function, R(Args...) const noexcept(Noexcept)>
+class base_impl<Function, R(Args...) const noexcept(Noexcept), Noexcept>
 {
 public:
     // Pre-condition: A call is stored in this object.
     R operator()(Args... args) const noexcept(Noexcept)
     {
         auto& obj = *static_cast<const Function*>(this);
-        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
+        return delegate(obj).call(data_addr(obj), static_cast<Args&&>(args)...);
     }
 
 private:
@@ -94,6 +106,24 @@ protected:
     template <typename Callable>
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
 };
+
+template <typename, typename>
+class base;
+
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...)> : public base_impl<Function, R(Args...), false> {};
+
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...) noexcept>
+    : public base_impl<Function, R(Args...) noexcept, true> {};
+
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...) const>
+    : public base_impl<Function, R(Args...) const, false> {};
+
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...) const noexcept>
+    : public base_impl<Function, R(Args...) const noexcept, true> {};
 
 } // namespace details::function_ns
 
@@ -269,7 +299,11 @@ public:
 private:
     using delegate_type = typename base::delegate_type;
 
-    friend class details::function_ns::base<function, Signature>;
+    template <typename Function>
+    friend auto details::function_ns::delegate(Function&) noexcept;
+
+    template <typename Function>
+    friend auto details::function_ns::data_addr(Function&) noexcept;
 
     template <typename, typename>
     friend class function;
