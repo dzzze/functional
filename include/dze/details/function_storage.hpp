@@ -33,14 +33,13 @@ public:
         : Alloc{alloc} {}
 
     storage(
-        size_type size, // NOLINT(readability-avoid-const-params-in-decls)
-        size_type alignment, // NOLINT(readability-avoid-const-params-in-decls)
+        const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
+        size_type alignment,
         const Alloc& alloc = Alloc{}) noexcept
         : Alloc{alloc}
     {
         if (size > Size || alignment > Align)
         {
-            size = ceil64(size);
             alignment = std::max(Align, alignment);
             const auto buf = allocate(size, alignment);
             init_alloc_details(buf, size, alignment);
@@ -89,7 +88,7 @@ public:
     }
 
     // Discards the stored data if new_size results in allocation.
-    void resize(size_type size, size_t alignment) noexcept
+    void resize(const size_type size, size_t alignment) noexcept
     {
         if (allocated())
         {
@@ -105,7 +104,6 @@ public:
         {
             if (size > Size || alignment > Align)
             {
-                size = ceil64(size);
                 alignment = std::max(Align, alignment);
                 const auto buf = allocate(size, alignment);
                 init_alloc_details(buf, size, alignment);
@@ -146,11 +144,6 @@ private:
         std::byte data[Size];
         bool allocated = false;
     } m_storage;
-
-    [[nodiscard]] static constexpr size_t ceil64(const size_t n) noexcept
-    {
-        return (n + 63) / 64 * 64;
-    }
 
     [[nodiscard]] const alloc_details& as_alloc_details() const noexcept
     {
