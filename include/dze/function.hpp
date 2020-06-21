@@ -9,8 +9,8 @@
 #include <dze/memory_resource.hpp>
 #include <dze/type_traits.hpp>
 
-#include "details/function_delegate.hpp"
-#include "details/function_storage.hpp"
+#include "details/function/delegate.hpp"
+#include "details/function/storage.hpp"
 
 namespace dze {
 

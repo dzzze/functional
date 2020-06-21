@@ -15,7 +15,7 @@ struct callable_but_not_copyable
     callable_but_not_copyable& operator=(const callable_but_not_copyable&) = delete;
     callable_but_not_copyable& operator=(callable_but_not_copyable&&) = delete;
 
-    template <class... Args>
+    template <typename... Args>
     void operator()(Args&&...) const {}
 };
 
@@ -100,10 +100,10 @@ TEST_CASE("Traits")
     }
 }
 
-template <class T, size_t S>
+template <typename T, size_t Size>
 struct functor
 {
-    std::array<T, S> data = {0};
+    std::array<T, Size> data = {0};
 
     // Two operator() with different argument types.
     // The InvokeReference tests use both
