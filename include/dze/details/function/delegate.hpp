@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstring>
 #include <type_traits>
 #include <utility>
 
@@ -14,7 +15,7 @@ auto& get_object(void* const data) noexcept
     using callable_decay = std::decay_t<Callable>;
     using cast_to = std::conditional_t<Const, const callable_decay, callable_decay>;
 
-    return *reinterpret_cast<cast_to*>(data);
+    return *static_cast<cast_to*>(data);
 }
 
 template <
@@ -33,19 +34,14 @@ R call_stub(void* const data, Args... args) noexcept(Noexcept)
 }
 
 template <typename Callable>
-void move_stub(void* const from, void* const to) noexcept
+void move_delete_stub(void* const from, void* const to) noexcept
 {
     using callable_decay_t = std::decay_t<Callable>;
 
-    ::new (to) callable_decay_t{std::move(get_object<Callable, false>(from))};
-}
-
-template <typename Callable>
-void deleter_stub(void* const data) noexcept
-{
-    using callable_decay_t = std::decay_t<Callable>;
-
-    get_object<Callable, false>(data).~callable_decay_t();
+    if (to != nullptr)
+        ::new (to) callable_decay_t{std::move(get_object<Callable, false>(from))};
+    else
+        get_object<Callable, false>(from).~callable_decay_t();
 }
 
 template <typename, bool>
@@ -61,30 +57,25 @@ public:
     void set() noexcept
     {
         m_call = call_stub<Callable, Const, Noexcept, R, Args...>;
-        m_move = move_stub<Callable>;
-        if constexpr (std::is_trivially_destructible_v<std::decay_t<Callable>>)
-            m_deleter = nullptr;
-        else
-            m_deleter = deleter_stub<Callable>;
+        m_move_delete = move_delete_stub<Callable>;
     }
 
     void reset() noexcept
     {
         m_call = nullptr;
-        m_move = nullptr;
-        m_deleter = nullptr;
+        m_move_delete = nullptr;
     }
 
     void move(void* const from, void* const to) const noexcept
     {
-        if (m_move != nullptr)
-            m_move(from, to);
+        if (m_move_delete != nullptr)
+            m_move_delete(from, to);
     }
 
     void destroy(void* const data) const noexcept
     {
-        if (m_deleter != nullptr)
-            m_deleter(data);
+        if (m_move_delete != nullptr)
+            m_move_delete(data, nullptr);
     }
 
     [[nodiscard]] bool empty() const noexcept { return m_call == nullptr; }
@@ -105,12 +96,10 @@ public:
 
 private:
     using call_t = R(void*, Args...) noexcept(Noexcept);
-    using move_t = void(void*, void*) noexcept;
-    using deleter_t = void(void*) noexcept;
+    using move_delete_t = void(void*, void*) noexcept;
 
     call_t* m_call;
-    move_t* m_move;
-    deleter_t* m_deleter;
+    move_delete_t* m_move_delete;
 };
 
 } // namespace dze::details::function_ns
