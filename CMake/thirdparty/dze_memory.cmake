@@ -8,7 +8,7 @@ set(proj_name dze_memory)
 fetch_content(
     ${proj_name}_proj
     GIT_REPOSITORY https://github.com/dzzze/memory.git
-    GIT_TAG 1b1b9d3bf445e599e7ab5b7e984a1519b8282bbe
+    GIT_TAG 06fc8cb8e3161d88b7cf2b179c7d0d92bd8c8aff
     GIT_SHALLOW true
     PREFIX "${thirdparty_prefix}/${proj_name}"
     SOURCE_DIR "${thirdparty_prefix}/${proj_name}/source"

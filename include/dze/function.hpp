@@ -171,7 +171,9 @@ public:
 
     template <typename Callable,
         DZE_REQUIRES(!is_function_v<Callable> && base::template is_convertible_v<Callable>)>
-    function(Callable call, const Alloc& alloc = Alloc{}) noexcept
+    function(Callable call, const Alloc& alloc = Alloc{})
+        noexcept(std::is_nothrow_constructible_v<
+            decltype(this->m_storage), size_t, size_t, const Alloc&>)
         : function{std::move(call), alloc, conv_tag_t{}} {}
 
     template <
@@ -211,13 +213,15 @@ public:
         DZE_REQUIRES(
             !is_movable_v<Signature2> &&
             base::template is_convertible_v<function<Signature2>>)>
-    function(function<Signature2, Alloc2>&& other, const Alloc& alloc = Alloc{}) noexcept
+    function(function<Signature2, Alloc2>&& other, const Alloc& alloc = Alloc{})
+        noexcept(
+            std::is_nothrow_constructible_v<function, decltype(other), const Alloc&, conv_tag_t>)
         : function{std::move(other), alloc, conv_tag_t{}} {}
 
     template <typename Signature2 = Signature,
         DZE_REQUIRES(is_movable_v<Signature2>)>
     function& operator=(function<Signature2, Alloc>&& other)
-        noexcept(noexcept(m_storage.resize(0, 0)))
+        noexcept(noexcept(this->m_storage.resize(0, 0)))
     {
         using alloc_traits = std::allocator_traits<Alloc>;
 
@@ -267,7 +271,7 @@ public:
             !is_movable_v<Signature2> &&
             base::template is_convertible_v<function<Signature2>>)>
     function& operator=(function<Signature2, Alloc2>&& other)
-        noexcept(noexcept(assign(std::move(other))))
+        noexcept(noexcept(this->assign(std::move(other))))
     {
         assign(std::move(other));
         return *this;
@@ -277,7 +281,7 @@ public:
 
     // Undefined behavior if std::allocator_traits<Alloc>::propagate_on_container_swap == false
     // and both allocators do not compare equal.
-    void swap(function& other) noexcept(noexcept(m_storage.resize(0, 0)))
+    void swap(function& other) noexcept(noexcept(this->m_storage.resize(0, 0)))
     {
         using alloc_traits = std::allocator_traits<Alloc>;
 
@@ -362,7 +366,7 @@ public:
 
     template <typename Callable,
         DZE_REQUIRES(!is_function_v<Callable> && base::template is_convertible_v<Callable>)>
-    function& operator=(Callable call) noexcept(noexcept(assign(std::move(call))))
+    function& operator=(Callable call) noexcept(noexcept(this->assign(std::move(call))))
     {
         assign(std::move(call));
         return *this;
@@ -412,7 +416,8 @@ private:
 
     template <typename Callable>
     function(Callable&& call, const Alloc& alloc, conv_tag_t)
-        noexcept(std::is_nothrow_constructible_v<decltype(m_storage), size_t, size_t, const Alloc&>)
+        noexcept(std::is_nothrow_constructible_v<
+            decltype(this->m_storage), size_t, size_t, const Alloc&>)
         : m_storage{sizeof(std::decay_t<Callable>), alignof(std::decay_t<Callable>), alloc}
     {
         m_delegate.template set<Callable, base::is_const>();

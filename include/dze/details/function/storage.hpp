@@ -35,7 +35,7 @@ public:
     storage(
         const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
         size_type alignment,
-        const Alloc& alloc = Alloc{}) noexcept(noexcept(allocate(size, alignment)))
+        const Alloc& alloc = Alloc{}) noexcept(noexcept(this->allocate(size, alignment)))
         : Alloc{alloc}
     {
         if (size > Size || alignment > Align)
@@ -77,7 +77,7 @@ public:
 
     // Discards the stored data if new_size results in allocation.
     void resize(const size_type size, size_t alignment)
-        noexcept(noexcept(allocate(size, alignment)))
+        noexcept(noexcept(this->allocate(size, alignment)))
     {
         if (allocated())
         {
@@ -106,7 +106,7 @@ public:
             unchecked_deallocate();
     }
 
-    [[nodiscard]] allocator_type get_allocator() const { return *this; }
+    [[nodiscard]] allocator_type get_allocator() const noexcept { return *this; }
 
     [[nodiscard]] bool allocated() const noexcept
     {

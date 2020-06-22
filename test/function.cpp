@@ -779,7 +779,7 @@ TEST_CASE("Constructor with copy")
     struct X
     {
         X() = default;
-        X(const X&) noexcept = default;
+        X(const X&) = default;
         X& operator=(const X&) = default;
     };
 
