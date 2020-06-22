@@ -155,6 +155,8 @@ class function : public details::function_ns::base_t<function<Signature, Alloc>,
         std::is_same_v<Sig, typename base::const_signature>;
 
 public:
+    using allocator_type = Alloc;
+
     function() noexcept
         : function{Alloc{}} {}
 
@@ -214,14 +216,42 @@ public:
 
     template <typename Signature2 = Signature,
         DZE_REQUIRES(is_movable_v<Signature2>)>
-    function& operator=(function<Signature2, Alloc>&& other) noexcept
+    function& operator=(function<Signature2, Alloc>&& other)
+        noexcept(noexcept(m_storage.resize(0, 0)))
     {
+        using alloc_traits = std::allocator_traits<Alloc>;
+
+        constexpr auto propagate_alloc_on_container_move_assn =
+            alloc_traits::propagate_on_container_move_assignment::value;
+        constexpr auto alloc_is_always_equal = alloc_traits::is_always_equal::value;
+
         m_delegate.destroy(data_addr());
         m_delegate = other.m_delegate;
         if (other.m_storage.allocated())
         {
-            m_storage.move_allocator(other.m_storage);
-            m_storage.move_allocated(other.m_storage);
+            if constexpr (propagate_alloc_on_container_move_assn)
+            {
+                m_storage.deallocate();
+                m_storage.move_allocator(other.m_storage);
+                m_storage.move_allocated(other.m_storage);
+            }
+            else if constexpr (alloc_is_always_equal)
+            {
+                m_storage.deallocate();
+                m_storage.move_allocated(other.m_storage);
+            }
+            else if (m_storage.get_allocator() == other.m_storage.get_allocator())
+            {
+                m_storage.deallocate();
+                m_storage.move_allocated(other.m_storage);
+            }
+            else
+            {
+                m_storage.resize(
+                    other.m_storage.allocated_size(), other.m_storage.allocated_alignment());
+                other.m_delegate.move(other.data_addr(), data_addr());
+                other.m_delegate.destroy(other.data_addr());
+            }
         }
         else
         {
@@ -236,7 +266,8 @@ public:
         DZE_REQUIRES(
             !is_movable_v<Signature2> &&
             base::template is_convertible_v<function<Signature2>>)>
-    function& operator=(function<Signature2, Alloc2>&& other) noexcept
+    function& operator=(function<Signature2, Alloc2>&& other)
+        noexcept(noexcept(assign(std::move(other))))
     {
         assign(std::move(other));
         return *this;
@@ -244,19 +275,54 @@ public:
 
     ~function() { m_delegate.destroy(data_addr()); }
 
-    void swap(function& other) noexcept
+    // Undefined behavior if std::allocator_traits<Alloc>::propagate_on_container_swap == false
+    // and both allocators do not compare equal.
+    void swap(function& other) noexcept(noexcept(m_storage.resize(0, 0)))
     {
+        using alloc_traits = std::allocator_traits<Alloc>;
+
+        constexpr auto propagate_alloc_on_container_move_assn =
+            alloc_traits::propagate_on_container_move_assignment::value;
+        constexpr auto propagate_alloc_on_container_swap =
+            alloc_traits::propagate_on_container_swap::value;
+        constexpr auto alloc_is_always_equal = alloc_traits::is_always_equal::value;
+
         std::swap(m_delegate, other.m_delegate);
-        m_storage.swap_allocator(other.m_storage);
-        std::byte temp[decltype(m_storage)::max_inline_size()];
+        alignas(std::max_align_t) std::byte temp[decltype(m_storage)::max_inline_size()];
         if (other.m_storage.allocated())
         {
             if (m_storage.allocated())
-                m_storage.swap_allocated(other.m_storage);
+            {
+                if constexpr (propagate_alloc_on_container_swap)
+                {
+                    m_storage.swap_allocator(other.m_storage);
+                    m_storage.swap_allocated(other.m_storage);
+                }
+                else if constexpr (alloc_is_always_equal)
+                    m_storage.swap_allocated(other.m_storage);
+                else if (m_storage.get_allocator() == other.m_storage.get_allocator())
+                    m_storage.swap_allocated(other.m_storage);
+                else
+                    assert(false);
+            }
             else
             {
                 other.m_delegate.move(data_addr(), temp);
-                m_storage.move_allocated(other.m_storage);
+                if constexpr (propagate_alloc_on_container_move_assn)
+                {
+                    m_storage.move_allocator(other.m_storage);
+                    m_storage.move_allocated(other.m_storage);
+                }
+                else if constexpr (alloc_is_always_equal)
+                    m_storage.move_allocated(other.m_storage);
+                else if (m_storage.get_allocator() == other.m_storage.get_allocator())
+                    m_storage.move_allocated(other.m_storage);
+                else
+                {
+                    m_storage.resize(
+                        other.m_storage.allocated_size(), other.m_storage.allocated_alignment());
+                    m_delegate.move(other.data_addr(), data_addr());
+                }
                 other.m_delegate.move(temp, other.data_addr());
             }
         }
@@ -264,7 +330,23 @@ public:
         {
             m_delegate.move(other.data_addr(), temp);
             if (m_storage.allocated())
-                other.m_storage.move_allocated(m_storage);
+            {
+                if constexpr (propagate_alloc_on_container_move_assn)
+                {
+                    other.m_storage.move_allocator(m_storage);
+                    other.m_storage.move_allocated(m_storage);
+                }
+                else if constexpr (alloc_is_always_equal)
+                    other.m_storage.move_allocated(m_storage);
+                else if (m_storage.get_allocator() == other.m_storage.get_allocator())
+                    other.m_storage.move_allocated(m_storage);
+                else
+                {
+                    other.m_storage.resize(
+                        m_storage.allocated_size(), m_storage.allocated_alignment());
+                    other.m_delegate.move(data_addr(), other.data_addr());
+                }
+            }
             else
                 other.m_delegate.move(data_addr(), other.data_addr());
             m_delegate.move(temp, data_addr());
@@ -280,7 +362,7 @@ public:
 
     template <typename Callable,
         DZE_REQUIRES(!is_function_v<Callable> && base::template is_convertible_v<Callable>)>
-    function& operator=(Callable call) noexcept
+    function& operator=(Callable call) noexcept(noexcept(assign(std::move(call))))
     {
         assign(std::move(call));
         return *this;
@@ -325,11 +407,12 @@ private:
     }
 
     details::function_ns::storage<
-        128 - 1 - sizeof(delegate_type), alignof(delegate_type), Alloc> m_storage;
+        80 - 1 - sizeof(delegate_type), alignof(std::max_align_t), Alloc> m_storage;
     delegate_type m_delegate;
 
     template <typename Callable>
-    function(Callable&& call, const Alloc& alloc, conv_tag_t) noexcept
+    function(Callable&& call, const Alloc& alloc, conv_tag_t)
+        noexcept(std::is_nothrow_constructible_v<decltype(m_storage), size_t, size_t, const Alloc&>)
         : m_storage{sizeof(std::decay_t<Callable>), alignof(std::decay_t<Callable>), alloc}
     {
         m_delegate.template set<Callable, base::is_const>();
@@ -337,7 +420,9 @@ private:
     }
 
     template <typename Callable>
-    void assign(Callable&& call) noexcept
+    void assign(Callable&& call)
+        noexcept(noexcept(
+            m_storage.resize(sizeof(std::decay_t<Callable>), alignof(std::decay_t<Callable>))))
     {
         m_delegate.destroy(data_addr());
         m_delegate.template set<Callable, base::is_const>();

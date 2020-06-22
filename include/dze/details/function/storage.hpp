@@ -35,7 +35,7 @@ public:
     storage(
         const size_type size, // NOLINT(readability-avoid-const-params-in-decls)
         size_type alignment,
-        const Alloc& alloc = Alloc{}) noexcept
+        const Alloc& alloc = Alloc{}) noexcept(noexcept(allocate(size, alignment)))
         : Alloc{alloc}
     {
         if (size > Size || alignment > Align)
@@ -50,13 +50,9 @@ public:
         : Alloc{std::move(other.get_allocator())}
         , m_storage{} {}
 
-    ~storage()
-    {
-        if (allocated())
-            deallocate();
-    }
+    ~storage() { deallocate(); }
 
-    void move_allcator(storage& other)
+    void move_allocator(storage& other)
     {
         get_allocator() = std::move(other.get_allocator());
     }
@@ -69,17 +65,9 @@ public:
         other.m_storage.allocated = false;
     }
 
-    // Undefined behavior if
-    // std::allocator_traits<allocator_type>::propagate_on_container_swap::value
-    // is false and get_allocator() != other.get_allocator().
     void swap_allocator(storage& other) noexcept
     {
-        using alloc_traits = std::allocator_traits<Alloc>;
-
-        if constexpr (alloc_traits::propagate_on_container_swap::value)
-            swap(static_cast<Alloc&>(*this), static_cast<Alloc&>(other));
-        else
-            assert(get_allocator() == other.get_allocator());
+        swap(get_allocator(), other.get_allocator());
     }
 
     void swap_allocated(storage& other)
@@ -88,7 +76,8 @@ public:
     }
 
     // Discards the stored data if new_size results in allocation.
-    void resize(const size_type size, size_t alignment) noexcept
+    void resize(const size_type size, size_t alignment)
+        noexcept(noexcept(allocate(size, alignment)))
     {
         if (allocated())
         {
@@ -96,7 +85,7 @@ public:
             {
                 alignment = std::max(Align, alignment);
                 const auto buf = allocate(size, alignment);
-                deallocate();
+                unchecked_deallocate();
                 as_alloc_details() = {buf, size, alignment};
             }
         }
@@ -111,7 +100,18 @@ public:
         }
     }
 
+    void deallocate() noexcept
+    {
+        if (allocated())
+            unchecked_deallocate();
+    }
+
     [[nodiscard]] allocator_type get_allocator() const { return *this; }
+
+    [[nodiscard]] bool allocated() const noexcept
+    {
+        return m_storage.allocated;
+    }
 
     [[nodiscard]] const_pointer data() const noexcept
     {
@@ -123,14 +123,19 @@ public:
         return allocated() ? allocated_data() : m_storage.data; 
     }
 
-    [[nodiscard]] bool allocated() const noexcept
+    [[nodiscard]] size_type allocated_size() const noexcept
     {
-        return m_storage.allocated;
+        return as_alloc_details().size;
     }
 
     [[nodiscard]] static constexpr size_t max_inline_size() noexcept
     {
         return Size;
+    }
+
+    [[nodiscard]] size_type allocated_alignment() const noexcept
+    {
+        return as_alloc_details().alignment;
     }
 
 private:
@@ -159,28 +164,19 @@ private:
 
     [[nodiscard]] pointer allocated_data() noexcept { return as_alloc_details().data; }
 
-    [[nodiscard]] size_type allocated_size() const noexcept
-    {
-        return as_alloc_details().size;
-    }
-
-    [[nodiscard]] size_type allocated_alignment() const noexcept
-    {
-        return as_alloc_details().alignment;
-    }
-
     void init_alloc_details(const pointer data, const size_t size, const size_t alignment) noexcept
     {
         ::new (&as_alloc_details()) alloc_details{data, size, alignment};
         m_storage.allocated = true;
     }
 
-    [[nodiscard]] auto allocate(const size_t size, const size_t alignment) noexcept
+    [[nodiscard]] auto allocate(const size_t size, const size_t alignment)
+        noexcept(noexcept(get_allocator().allocate_bytes(size, alignment)))
     {
         return get_allocator().allocate_bytes(size, alignment);
     }
 
-    void deallocate() noexcept
+    void unchecked_deallocate() noexcept
     {
         get_allocator().deallocate_bytes(
             allocated_data(), allocated_size(), allocated_alignment());
