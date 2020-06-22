@@ -18,7 +18,6 @@ add_library(nanobench OBJECT ${CMAKE_CURRENT_LIST_DIR}/nanobench_impl.cpp)
 target_include_directories(nanobench PUBLIC ${${proj_name}_proj_SOURCE_DIR}/src/include)
 
 if (${PROJECT_NAME}_static_analyzer)
-    # Disable modernization and readability checks in Clang-Tidy for Aeron libs.
     set_target_properties(
         nanobench
         PROPERTIES

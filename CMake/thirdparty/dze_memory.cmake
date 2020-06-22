@@ -7,8 +7,8 @@ set(proj_name dze_memory)
 
 fetch_content(
     ${proj_name}_proj
-    GIT_REPOSITORY /home/deniz/work/dze/memory ##https://github.com/dzzze/memory.git
-    GIT_TAG 29a15f40dc52270fbd2117917dbf601059354ae5
+    GIT_REPOSITORY https://github.com/dzzze/memory.git
+    GIT_TAG 1b1b9d3bf445e599e7ab5b7e984a1519b8282bbe
     GIT_SHALLOW true
     PREFIX "${thirdparty_prefix}/${proj_name}"
     SOURCE_DIR "${thirdparty_prefix}/${proj_name}/source"

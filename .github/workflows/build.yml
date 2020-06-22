@@ -59,9 +59,13 @@ jobs:
             -S .
           ninja -v -C build
 
-      - name: Benchmark
+      - name: Benchmark with nanobench
         run: |
-          build/benchmark/bench
+          build/benchmark/bench_nanobench
+
+      - name: Benchmark with Google Benchmark
+        run: |
+          build/benchmark/bench_google_bench
 
   macos_build:
     name: macOS ${{ matrix.config }} build with ${{ matrix.compiler }} ${{ matrix.version }}
@@ -131,9 +135,13 @@ jobs:
             -S .
           ninja -v -C build
 
-      - name: Benchmark
+      - name: Benchmark with nanobench
         run: |
-          build/benchmark/bench
+          build/benchmark/bench_nanobench
+
+      - name: Benchmark with Google Benchmark
+        run: |
+          build/benchmark/bench_google_bench
 
   windows_build:
     name: Windows ${{ matrix.config }} build with MSVC
@@ -173,7 +181,12 @@ jobs:
             -S .
           ninja -v -C build
 
-      - name: Benchmark
+      - name: Benchmark with nanobench
         shell: bash
         run: |
-          build/benchmark/bench
+          build/benchmark/bench_nanobench
+
+      - name: Benchmark with Google Benchmark
+        shell: bash
+        run: |
+          build/benchmark/bench_google_bench
