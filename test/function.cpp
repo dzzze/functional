@@ -236,7 +236,7 @@ template <template <typename...> typename Function>
 void test_swap_allocated_and_inline()
 {
     std::array<int, 101> a;
-    for (size_t i = 0; i != a.size(); ++i)
+    for (int i = 0; i != static_cast<int>(a.size()); ++i)
         a[i] = i + 111;
 
     Function<int(int)> f1 = [] (const int i) { return i + 25; };
@@ -255,7 +255,7 @@ template <template <typename...> typename Function>
 void test_swap_allocated()
 {
     std::array<int, 101> a;
-    for (size_t i = 0; i != a.size(); ++i)
+    for (int i = 0; i != static_cast<int>(a.size()); ++i)
         a[i] = i;
 
     Function<int(int)> f1 = [a] (const int i) { return a[i] + 25; };

@@ -15,6 +15,7 @@ fetch_content(
     BINARY_DIR "${thirdparty_binary_dir}/${proj_name}/bin")
 
 add_library(nanobench OBJECT ${CMAKE_CURRENT_LIST_DIR}/nanobench_impl.cpp)
+target_compile_options(nanobench PUBLIC $<$<CXX_COMPILER_ID:MSVC>:/wd4267>)
 target_include_directories(nanobench PUBLIC ${${proj_name}_proj_SOURCE_DIR}/src/include)
 
 if (${PROJECT_NAME}_static_analyzer)

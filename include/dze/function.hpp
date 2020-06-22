@@ -20,15 +20,15 @@ template <typename From, typename To>
 inline constexpr bool is_safely_convertible_v =
     !std::is_reference_v<To> || std::is_reference_v<From>;
 
-template <typename, typename, bool>
-class base_impl;
+template <typename, typename>
+class base;
 
-template <typename Function, bool Noexcept, typename R, typename... Args>
-class base_impl<Function, R(Args...) noexcept(Noexcept), Noexcept>
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...)>
 {
 public:
     // Pre-condition: A call is stored in this object.
-    R operator()(Args... args) noexcept(Noexcept)
+    R operator()(Args... args)
     {
         auto& obj = *static_cast<Function*>(this);
         return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
@@ -42,17 +42,15 @@ private:
     struct is_convertible<
         Callable,
         std::enable_if_t<
-            (Noexcept
-                ? std::is_nothrow_invocable_v<std::decay_t<Callable>&, Args...>
-                : std::is_invocable_v<std::decay_t<Callable>&, Args...>) &&
+            std::is_invocable_v<std::decay_t<Callable>&, Args...> &&
             is_safely_convertible_v<
                 std::invoke_result_t<std::decay_t<Callable>&, Args...>, R>>>
         : std::true_type {};
 
 protected:
-    using delegate_type = delegate_t<R(Args...), Noexcept>;
-    using const_signature = R(Args...) const noexcept(Noexcept);
-    using mut_signature = R(Args...) noexcept(Noexcept);
+    using delegate_type = delegate_t<R(Args...), false>;
+    using const_signature = R(Args...) const;
+    using mut_signature = R(Args...);
 
     static constexpr bool is_const = false;
 
@@ -60,12 +58,47 @@ protected:
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
 };
 
-template <typename Function, bool Noexcept, typename R, typename... Args>
-class base_impl<Function, R(Args...) const noexcept(Noexcept), Noexcept>
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...) noexcept>
 {
 public:
     // Pre-condition: A call is stored in this object.
-    R operator()(Args... args) const noexcept(Noexcept)
+    R operator()(Args... args) noexcept
+    {
+        auto& obj = *static_cast<Function*>(this);
+        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
+    }
+
+private:
+    template <typename Callable, typename = void>
+    struct is_convertible : std::false_type {};
+
+    template <typename Callable>
+    struct is_convertible<
+        Callable,
+        std::enable_if_t<
+            std::is_nothrow_invocable_v<std::decay_t<Callable>&, Args...> &&
+            is_safely_convertible_v<
+                std::invoke_result_t<std::decay_t<Callable>&, Args...>, R>>>
+        : std::true_type {};
+
+protected:
+    using delegate_type = delegate_t<R(Args...), true>;
+    using const_signature = R(Args...) const noexcept;
+    using mut_signature = R(Args...) noexcept;
+
+    static constexpr bool is_const = false;
+
+    template <typename Callable>
+    static constexpr bool is_convertible_v = is_convertible<Callable>::value;
+};
+
+template <typename Function, typename R, typename... Args>
+class base<Function, R(Args...) const>
+{
+public:
+    // Pre-condition: A call is stored in this object.
+    R operator()(Args... args) const
     {
         auto& obj = *static_cast<const Function*>(this);
         return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
@@ -79,17 +112,15 @@ private:
     struct is_convertible<
         Callable,
         std::enable_if_t<
-            (Noexcept
-                ? std::is_nothrow_invocable_v<const std::decay_t<Callable>&, Args...>
-                : std::is_invocable_v<const std::decay_t<Callable>&, Args...>) &&
+            std::is_invocable_v<const std::decay_t<Callable>&, Args...> &&
             is_safely_convertible_v<
                 std::invoke_result_t<const std::decay_t<Callable>&, Args...>, R>>>
         : std::true_type {};
 
 protected:
-    using delegate_type = delegate_t<R(Args...), Noexcept>;
-    using const_signature = R(Args...) const noexcept(Noexcept);
-    using mut_signature = R(Args...) noexcept(Noexcept);
+    using delegate_type = delegate_t<R(Args...), false>;
+    using const_signature = R(Args...) const;
+    using mut_signature = R(Args...);
 
     static constexpr bool is_const = true;
 
@@ -97,35 +128,40 @@ protected:
     static constexpr bool is_convertible_v = is_convertible<Callable>::value;
 };
 
-template <typename, typename>
-struct base;
-
 template <typename Function, typename R, typename... Args>
-struct base<Function, R(Args...)>
+class base<Function, R(Args...) const noexcept>
 {
-    using type = base_impl<Function, R(Args...), false>;
-};
+public:
+    // Pre-condition: A call is stored in this object.
+    R operator()(Args... args) const noexcept
+    {
+        auto& obj = *static_cast<const Function*>(this);
+        return obj.m_delegate.call(obj.data_addr(), static_cast<Args&&>(args)...);
+    }
 
-template <typename Function, typename R, typename... Args>
-struct base<Function, R(Args...) noexcept>
-{
-    using type = base_impl<Function, R(Args...) noexcept, true>;
-};
+private:
+    template <typename Callable, typename = void>
+    struct is_convertible : std::false_type {};
 
-template <typename Function, typename R, typename... Args>
-struct base<Function, R(Args...) const>
-{
-    using type = base_impl<Function, R(Args...) const, false>;
-};
+    template <typename Callable>
+    struct is_convertible<
+        Callable,
+        std::enable_if_t<
+            std::is_nothrow_invocable_v<const std::decay_t<Callable>&, Args...> &&
+            is_safely_convertible_v<
+                std::invoke_result_t<const std::decay_t<Callable>&, Args...>, R>>>
+        : std::true_type {};
 
-template <typename Function, typename R, typename... Args>
-struct base<Function, R(Args...) const noexcept>
-{
-    using type = base_impl<Function, R(Args...) const noexcept, true>;
-};
+protected:
+    using delegate_type = delegate_t<R(Args...), true>;
+    using const_signature = R(Args...) const noexcept;
+    using mut_signature = R(Args...) noexcept;
 
-template <typename Function, typename Signature>
-using base_t = typename base<Function, Signature>::type;
+    static constexpr bool is_const = true;
+
+    template <typename Callable>
+    static constexpr bool is_convertible_v = is_convertible<Callable>::value;
+};
 
 } // namespace details::function_ns
 
@@ -143,9 +179,9 @@ inline constexpr bool is_function_v = is_function<T>::value;
 
 // Move-only polymorphic function wrapper.
 template <typename Signature, typename Alloc = allocator>
-class function : public details::function_ns::base_t<function<Signature, Alloc>, Signature>
+class function : public details::function_ns::base<function<Signature, Alloc>, Signature>
 {
-    using base = details::function_ns::base_t<function, Signature>;
+    using base = details::function_ns::base<function, Signature>;
 
     struct conv_tag_t {};
 
