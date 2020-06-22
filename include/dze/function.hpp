@@ -452,28 +452,52 @@ namespace details::function_ns {
 template <typename>
 struct guide_helper {};
 
-template <typename R, typename T, bool Noexcept, typename... Args>
-struct guide_helper<R(T::*)(Args...) noexcept(Noexcept)>
+template <typename R, typename T, typename... Args>
+struct guide_helper<R(T::*)(Args...)>
 {
-    using type = R(Args...) noexcept(Noexcept);
+    using type = R(Args...);
 };
 
-template <typename R, typename T, bool Noexcept, typename... Args>
-struct guide_helper<R(T::*)(Args...) & noexcept(Noexcept)>
+template <typename R, typename T, typename... Args>
+struct guide_helper<R(T::*)(Args...) noexcept>
 {
-    using type = R(Args...) noexcept(Noexcept);
+    using type = R(Args...) noexcept;
 };
 
-template <typename R, typename T, bool Noexcept, typename... Args>
-struct guide_helper<R(T::*)(Args...) const noexcept(Noexcept)>
+template <typename R, typename T, typename... Args>
+struct guide_helper<R(T::*)(Args...) &>
 {
-    using type = R(Args...) const noexcept(Noexcept);
+    using type = R(Args...);
 };
 
-template <typename R, typename T, bool Noexcept, typename... Args>
-struct guide_helper<R(T::*)(Args...) const& noexcept(Noexcept)>
+template <typename R, typename T, typename... Args>
+struct guide_helper<R(T::*)(Args...) & noexcept>
 {
-    using type = R(Args...) const noexcept(Noexcept);
+    using type = R(Args...) noexcept;
+};
+
+template <typename R, typename T, typename... Args>
+struct guide_helper<R(T::*)(Args...) const>
+{
+    using type = R(Args...) const;
+};
+
+template <typename R, typename T, typename... Args>
+struct guide_helper<R(T::*)(Args...) const noexcept>
+{
+    using type = R(Args...) const noexcept;
+};
+
+template <typename R, typename T, typename... Args>
+struct guide_helper<R(T::*)(Args...) const&>
+{
+    using type = R(Args...) const;
+};
+
+template <typename R, typename T, typename... Args>
+struct guide_helper<R(T::*)(Args...) const& noexcept>
+{
+    using type = R(Args...) const noexcept;
 };
 
 template <typename Callable>
