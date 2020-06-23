@@ -214,17 +214,20 @@ public:
                 m_storage.deallocate();
                 m_storage.move_allocated(other.m_storage);
             }
-            else if (m_storage.get_allocator() == other.m_storage.get_allocator())
-            {
-                m_storage.deallocate();
-                m_storage.move_allocated(other.m_storage);
-            }
             else
             {
-                m_storage.resize(
-                    other.m_storage.allocated_size(), other.m_storage.allocated_alignment());
-                other.m_delegate.move(other.data_addr(), data_addr());
-                other.m_delegate.destroy(other.data_addr());
+                if (m_storage.get_allocator() == other.m_storage.get_allocator())
+                {
+                    m_storage.deallocate();
+                    m_storage.move_allocated(other.m_storage);
+                }
+                else
+                {
+                    m_storage.resize(
+                        other.m_storage.allocated_size(), other.m_storage.allocated_alignment());
+                    other.m_delegate.move(other.data_addr(), data_addr());
+                    other.m_delegate.destroy(other.data_addr());
+                }
             }
         }
         else
@@ -255,8 +258,6 @@ public:
     {
         using alloc_traits = std::allocator_traits<Alloc>;
 
-        constexpr auto propagate_alloc_on_container_move_assn =
-            alloc_traits::propagate_on_container_move_assignment::value;
         constexpr auto propagate_alloc_on_container_swap =
             alloc_traits::propagate_on_container_swap::value;
         constexpr auto alloc_is_always_equal = alloc_traits::is_always_equal::value;
@@ -274,29 +275,18 @@ public:
                 }
                 else if constexpr (alloc_is_always_equal)
                     m_storage.swap_allocated(other.m_storage);
-                else if (m_storage.get_allocator() == other.m_storage.get_allocator())
-                    m_storage.swap_allocated(other.m_storage);
                 else
-                    assert(false);
+                {
+                    if (m_storage.get_allocator() == other.m_storage.get_allocator())
+                        m_storage.swap_allocated(other.m_storage);
+                    else
+                        assert(false);
+                }
             }
             else
             {
                 other.m_delegate.move(data_addr(), temp);
-                if constexpr (propagate_alloc_on_container_move_assn)
-                {
-                    m_storage.move_allocator(other.m_storage);
-                    m_storage.move_allocated(other.m_storage);
-                }
-                else if constexpr (alloc_is_always_equal)
-                    m_storage.move_allocated(other.m_storage);
-                else if (m_storage.get_allocator() == other.m_storage.get_allocator())
-                    m_storage.move_allocated(other.m_storage);
-                else
-                {
-                    m_storage.resize(
-                        other.m_storage.allocated_size(), other.m_storage.allocated_alignment());
-                    m_delegate.move(other.data_addr(), data_addr());
-                }
+                swap_helper(*this, other);
                 other.m_delegate.move(temp, other.data_addr());
             }
         }
@@ -304,23 +294,7 @@ public:
         {
             m_delegate.move(other.data_addr(), temp);
             if (m_storage.allocated())
-            {
-                if constexpr (propagate_alloc_on_container_move_assn)
-                {
-                    other.m_storage.move_allocator(m_storage);
-                    other.m_storage.move_allocated(m_storage);
-                }
-                else if constexpr (alloc_is_always_equal)
-                    other.m_storage.move_allocated(m_storage);
-                else if (m_storage.get_allocator() == other.m_storage.get_allocator())
-                    other.m_storage.move_allocated(m_storage);
-                else
-                {
-                    other.m_storage.resize(
-                        m_storage.allocated_size(), m_storage.allocated_alignment());
-                    other.m_delegate.move(data_addr(), other.data_addr());
-                }
-            }
+                swap_helper(other, *this);
             else
                 other.m_delegate.move(data_addr(), other.data_addr());
             m_delegate.move(temp, data_addr());
@@ -408,6 +382,35 @@ private:
     [[nodiscard]] const void* data_addr() const noexcept { return m_storage.data(); }
 
     [[nodiscard]] void* data_addr() noexcept { return m_storage.data(); }
+
+    static void swap_helper(function& lhs, function& rhs)
+        noexcept(noexcept(lhs.m_storage.resize(0, 0)))
+    {
+        using alloc_traits = std::allocator_traits<Alloc>;
+
+        constexpr auto propagate_alloc_on_container_move_assn =
+            alloc_traits::propagate_on_container_move_assignment::value;
+        constexpr auto alloc_is_always_equal = alloc_traits::is_always_equal::value;
+
+        if constexpr (propagate_alloc_on_container_move_assn)
+        {
+            lhs.m_storage.move_allocator(rhs.m_storage);
+            lhs.m_storage.move_allocated(rhs.m_storage);
+        }
+        else if constexpr (alloc_is_always_equal)
+            lhs.m_storage.move_allocated(rhs.m_storage);
+        else
+        {
+            if (lhs.m_storage.get_allocator() == rhs.m_storage.get_allocator())
+                lhs.m_storage.move_allocated(rhs.m_storage);
+            else
+            {
+                lhs.m_storage.resize(
+                    rhs.m_storage.allocated_size(), rhs.m_storage.allocated_alignment());
+                lhs.m_delegate.move(rhs.data_addr(), lhs.data_addr());
+            }
+        }
+    }
 };
 
 template <typename R, typename... Args, typename Alloc = allocator>
