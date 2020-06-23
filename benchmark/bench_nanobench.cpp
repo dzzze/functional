@@ -11,6 +11,7 @@
 
 int main()
 {
+    constexpr size_t epochs = 4 * 128;
     constexpr size_t iterations = 1024;
 
     int x = 1;
@@ -18,167 +19,139 @@ int main()
     auto bench = ankerl::nanobench::Bench();
     bench.title("x += x, captureless");
 
-    bench.run(
+    bench.epochs(epochs).epochIterations(iterations).run(
         "direct call",
-        [&] ()
-        {
-            for (size_t i = 0; i != iterations; ++i)
-                ankerl::nanobench::doNotOptimizeAway(x += x);
-        });
+        [&] { ankerl::nanobench::doNotOptimizeAway(x += x); });
 
     {
-        std::vector<fff*> v(iterations);
-        bench.run(
+        std::vector<fff*> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "function pointer",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_captureless_function();
-                    ankerl::nanobench::doNotOptimizeAway(f(x));
-                }
+                auto& f = *it++ = get_captureless_function();
+                ankerl::nanobench::doNotOptimizeAway(f(x));
             });
     }
 
     {
-        std::vector<std::function<int&(int&)>> v(iterations);
-        bench.run(
+        std::vector<std::function<int&(int&)>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "std::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_captureless_function();
-                    ankerl::nanobench::doNotOptimizeAway(f(x));
-                }
+                auto& f = *it++ = get_captureless_function();
+                ankerl::nanobench::doNotOptimizeAway(f(x));
             });
     }
 
     {
-        std::vector<dze::function<int&(int&)>> v(iterations);
-        bench.run(
+        std::vector<dze::function<int&(int&)>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "dze::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_captureless_function();
-                    ankerl::nanobench::doNotOptimizeAway(f(x));
-                }
+                auto& f = *it++ = get_captureless_function();
+                ankerl::nanobench::doNotOptimizeAway(f(x));
             });
     }
 
     {
-        std::vector<dze::pmr::function<int&(int&)>> v(iterations);
-        bench.run(
+        std::vector<dze::pmr::function<int&(int&)>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "dze::pmr::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_captureless_function();
-                    ankerl::nanobench::doNotOptimizeAway(f(x));
-                }
+                auto& f = *it++ = get_captureless_function();
+                ankerl::nanobench::doNotOptimizeAway(f(x));
             });
     }
 
     {
         std::vector<dze::pmr::function<int&(int&)>> v;
-        v.reserve(iterations);
+        v.reserve(epochs * iterations);
         for (size_t i = 0; i != v.capacity(); ++i)
             v.emplace_back(std::pmr::null_memory_resource());
-        bench.run(
-        "dze::pmr::function with null_memory_resource",
-            [&] ()
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
+            "dze::pmr::function with null_memory_resource",
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_captureless_function();
-                    ankerl::nanobench::doNotOptimizeAway(f(x));
-                }
+                auto& f = *it++ = get_captureless_function();
+                ankerl::nanobench::doNotOptimizeAway(f(x));
             });
     }
 
     bench.title("x += x");
 
-    bench.run(
+    bench.epochs(epochs).epochIterations(iterations).run(
         "direct call",
-        [&] ()
-        {
-            for (size_t i = 0; i != iterations; ++i)
-                ankerl::nanobench::doNotOptimizeAway(x += x);
-        });
+        [&] { ankerl::nanobench::doNotOptimizeAway(x += x); });
 
     {
-        std::vector<capture> v(iterations);
-        bench.run(
+        std::vector<capture> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "function object",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x);
-                    ankerl::nanobench::doNotOptimizeAway(f());
-                }
+                auto& f = *it++ = get_function_object(x);
+                ankerl::nanobench::doNotOptimizeAway(f());
             });
     }
 
     {
-        std::vector<std::function<int&()>> v(iterations);
-        bench.run(
+        std::vector<std::function<int&()>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "std::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x);
-                    ankerl::nanobench::doNotOptimizeAway(f());
-                }
+                auto& f = *it++ = get_function_object(x);
+                ankerl::nanobench::doNotOptimizeAway(f());
             });
     }
 
     {
-        std::vector<dze::function<int&()>> v(iterations);
-        bench.run(
+        std::vector<dze::function<int&()>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "dze::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x);
-                    ankerl::nanobench::doNotOptimizeAway(f());
-                }
+                auto& f = *it++ = get_function_object(x);
+                ankerl::nanobench::doNotOptimizeAway(f());
             });
     }
 
     {
-        std::vector<dze::pmr::function<int&()>> v(iterations);
-        bench.run(
+        std::vector<dze::pmr::function<int&()>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "dze::pmr::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x);
-                    ankerl::nanobench::doNotOptimizeAway(f());
-                }
+                auto& f = *it++ = get_function_object(x);
+                ankerl::nanobench::doNotOptimizeAway(f());
             });
     }
 
     {
         std::vector<dze::pmr::function<int&()>> v;
-        v.reserve(iterations);
+        v.reserve(epochs * iterations);
         for (size_t i = 0; i != v.capacity(); ++i)
             v.emplace_back(std::pmr::null_memory_resource());
-        bench.run(
-        "dze::pmr::function with null_memory_resource",
-            [&] ()
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
+            "dze::pmr::function with null_memory_resource",
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x);
-                    ankerl::nanobench::doNotOptimizeAway(f());
-                }
+                auto& f = *it++ = get_function_object(x);
+                ankerl::nanobench::doNotOptimizeAway(f());
             });
     }
 
@@ -190,45 +163,38 @@ int main()
     {
         ankerl::nanobench::Rng rng{0};
 
-        bench.run(
+        bench.epochs(epochs).epochIterations(iterations).run(
             "direct call",
-            [&] ()
+            [&]
             {
-                for (size_t i = 0; i != iterations; ++i)
-                {
-                    auto nums2 = nums;
-                    ankerl::nanobench::doNotOptimizeAway(x += nums2[rng.bounded(nums.size())]);
-                }
+                auto nums2 = nums;
+                ankerl::nanobench::doNotOptimizeAway(x += nums2[rng.bounded(nums.size())]);
             });
     }
 
     {
         ankerl::nanobench::Rng rng{0};
-        std::vector<capture2> v(iterations);
-        bench.run(
+        std::vector<capture2> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "function object",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x, nums);
-                    ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
-                }
+                auto& f = *it++ = get_function_object(x, nums);
+                ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
             });
     }
 
     {
         ankerl::nanobench::Rng rng{0};
-        std::vector<std::function<int&(size_t)>> v(iterations);
-        bench.run(
+        std::vector<std::function<int&(size_t)>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "std::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x, nums);
-                    ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
-                }
+                auto& f = *it++ = get_function_object(x, nums);
+                ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
             });
     }
 
@@ -239,16 +205,14 @@ int main()
 
     {
         ankerl::nanobench::Rng rng{0};
-        std::vector<dze::function<int&(size_t)>> v(iterations);
-        bench.run(
+        std::vector<dze::function<int&(size_t)>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "dze::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x, nums);
-                    ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
-                }
+                auto& f = *it++ = get_function_object(x, nums);
+                ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
             });
     }
 
@@ -258,33 +222,29 @@ int main()
 
         ankerl::nanobench::Rng rng{0};
         std::vector<dze::function<int&(size_t), dze::monotonic_buffer_resource>> v;
-        v.reserve(iterations);
+        v.reserve(epochs * iterations);
         for (size_t i = 0; i != v.capacity(); ++i)
             v.emplace_back(mr);
-        bench.run(
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "dze::function with monotonic_buffer_resource",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x, nums);
-                    ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
-                }
+                auto& f = *it++ = get_function_object(x, nums);
+                ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
             });
     }
 
     {
         ankerl::nanobench::Rng rng{0};
-        std::vector<dze::pmr::function<int&(size_t)>> v(iterations);
-        bench.run(
+        std::vector<dze::pmr::function<int&(size_t)>> v(epochs * iterations);
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "dze::pmr::function",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x, nums);
-                    ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
-                }
+                auto& f = *it++ = get_function_object(x, nums);
+                ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
             });
     }
 
@@ -294,19 +254,17 @@ int main()
 
         ankerl::nanobench::Rng rng{0};
         std::vector<dze::pmr::function<int&(size_t)>> v;
-        v.reserve(iterations);
+        v.reserve(epochs * iterations);
         for (size_t i = 0; i != v.capacity(); ++i)
             v.emplace_back(&mr);
-        bench.run(
+        auto it = v.begin();
+        bench.epochs(epochs).epochIterations(iterations).run(
             "dze::pmr::function with monotonic_buffer_resource",
-            [&] ()
+            [&]
             {
-                for (auto& f : v)
-                {
-                    f = get_function_object(x, nums);
-                    ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
-                    mr.release();
-                }
+                auto& f = *it++ = get_function_object(x, nums);
+                ankerl::nanobench::doNotOptimizeAway(f(rng.bounded(nums.size())));
+                mr.release();
             });
     }
 }
