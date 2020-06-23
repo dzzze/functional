@@ -328,6 +328,13 @@ public:
 
     explicit operator bool() const noexcept { return !m_delegate.empty(); }
 
+    // Deallcates storage if there is no callable object stored.
+    void shrink_to_fit() noexcept
+    {
+        if (!*this)
+            m_storage.deallocate();
+    }
+
 private:
     using delegate_type = typename base::delegate_type;
 
