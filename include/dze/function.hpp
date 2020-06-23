@@ -195,21 +195,17 @@ public:
     {
         using alloc_traits = std::allocator_traits<Alloc>;
 
-        constexpr auto propagate_alloc_on_container_move_assn =
-            alloc_traits::propagate_on_container_move_assignment::value;
-        constexpr auto alloc_is_always_equal = alloc_traits::is_always_equal::value;
-
         m_delegate.destroy(data_addr());
         m_delegate = other.m_delegate;
         if (other.m_storage.allocated())
         {
-            if constexpr (propagate_alloc_on_container_move_assn)
+            if constexpr (alloc_traits::propagate_on_container_move_assignment::value)
             {
                 m_storage.deallocate();
                 m_storage.move_allocator(other.m_storage);
                 m_storage.move_allocated(other.m_storage);
             }
-            else if constexpr (alloc_is_always_equal)
+            else if constexpr (alloc_traits::is_always_equal::value)
             {
                 m_storage.deallocate();
                 m_storage.move_allocated(other.m_storage);
@@ -258,22 +254,18 @@ public:
     {
         using alloc_traits = std::allocator_traits<Alloc>;
 
-        constexpr auto propagate_alloc_on_container_swap =
-            alloc_traits::propagate_on_container_swap::value;
-        constexpr auto alloc_is_always_equal = alloc_traits::is_always_equal::value;
-
         std::swap(m_delegate, other.m_delegate);
         alignas(std::max_align_t) std::byte temp[decltype(m_storage)::max_inline_size()];
         if (other.m_storage.allocated())
         {
             if (m_storage.allocated())
             {
-                if constexpr (propagate_alloc_on_container_swap)
+                if constexpr (alloc_traits::propagate_on_container_swap::value)
                 {
                     m_storage.swap_allocator(other.m_storage);
                     m_storage.swap_allocated(other.m_storage);
                 }
-                else if constexpr (alloc_is_always_equal)
+                else if constexpr (alloc_traits::is_always_equal::value)
                     m_storage.swap_allocated(other.m_storage);
                 else
                 {
@@ -395,16 +387,12 @@ private:
     {
         using alloc_traits = std::allocator_traits<Alloc>;
 
-        constexpr auto propagate_alloc_on_container_move_assn =
-            alloc_traits::propagate_on_container_move_assignment::value;
-        constexpr auto alloc_is_always_equal = alloc_traits::is_always_equal::value;
-
-        if constexpr (propagate_alloc_on_container_move_assn)
+        if constexpr (alloc_traits::propagate_on_container_move_assignment::value)
         {
             lhs.m_storage.move_allocator(rhs.m_storage);
             lhs.m_storage.move_allocated(rhs.m_storage);
         }
-        else if constexpr (alloc_is_always_equal)
+        else if constexpr (alloc_traits::is_always_equal::value)
             lhs.m_storage.move_allocated(rhs.m_storage);
         else
         {
